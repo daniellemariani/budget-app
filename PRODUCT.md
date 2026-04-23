@@ -34,7 +34,7 @@ Managing a home budget through spreadsheets is fragile, error-prone, and inacces
    - User defines optional goals (e.g., Hawaii trip)
 
 3. During the month:
-   - User logs expenses (quick entry)
+   - User logs expenses and transfers (quick entry)
    - User reviews "left to spend" per category
 
 4. Mid-month adjustments:
@@ -52,6 +52,7 @@ Managing a home budget through spreadsheets is fragile, error-prone, and inacces
 - Seamless expense tracking and monthly planning
 - Real-time visibility into budget vs. actual spending per category
 - Full offline support — works without internet at all times
+- Accessible to users globally through multi-currency support (Phase 4+)
 
 ### Project Goals (Builder)
 - Reactivate Android/Kotlin expertise with Jetpack Compose
@@ -64,7 +65,6 @@ Managing a home budget through spreadsheets is fragile, error-prone, and inacces
 - No investment tracking
 - No exportable reports or CSV export (Phase 1)
 - No tax-related reporting
-- No multi-currency support
 - No financial advice or recommendations
 - No Multi-user collaboration (Phase 4+ — see Workspace model in SPEC.md)
 
@@ -93,14 +93,15 @@ Managing a home budget through spreadsheets is fragile, error-prone, and inacces
 - User can use the app anonymously — no account creation or login required in Phase 1
 - Single-user household budget in Phase 1 (multi-user collaboration introduced in Phase 4+)
 - User manually enters all transactions (no import/export or integration with third-party solutions)
-- English language support sufficient for target market
+- English language support sufficient for Phase 1-3. Multi-language support to be considered in Phase 4+.
+- Default currency is USD. Configurable after Phase 1.
 
 ## Competitive Context
-This app focuses on fast manual entry, offline-first operation, and simple monthly planning without requiring bank integrations or subscriptions.
+Existing tools (YNAB, Copilot, Monarch Money) are powerful but complex, subscription-based, and often require bank connections. YNAB enforces strict envelope budgeting that can feel rigid for casual users. This app takes a flexible approach — budgets are optional spending plans, not hard caps. No bank connection, no subscription required, full offline support, and simple enough for users currently managing finances in spreadsheets.
 
 ## Open Questions
-- Should the public version be free, freemium, or paid? or include Google Ads?
+- Should the public version be free, freemium, or paid?
+- Should the app include advertising (e.g. Google Ads)? Note: may conflict with "Privacy by default" core principle.
 - Is receipt scanning a must-have for public launch?
-- What geographic markets to target first beyond the US?
 - Should the app support Spanish in addition to English for initial launch?
-- Should Analytics be supported for public release?
+- Should product analytics be collected for public release? (e.g. usage tracking via Firebase Analytics or Mixpanel) Note: requires explicit user consent strategy and may conflict with "Privacy by default" core principle.
