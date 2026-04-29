@@ -3,7 +3,8 @@
 **Version:** 0.1.0
 **Status:** In Progress
 **Owner:** Danielle Mariani
-**Last Updated:** 2026-04-21
+**Created at:** 2026-04-21
+**Last Updated:** 2026-04-23
 
 ## Problem Statement
 Managing a home budget through spreadsheets is fragile, error-prone, and inaccessible on mobile. There is no real-time visibility into spending by category, no tracking of credit card debt vs available funds, and no easy way to monitor progress toward financial goals. Every month starts from scratch with no accumulated insight from previous periods.
@@ -105,3 +106,4 @@ Existing tools (YNAB, Copilot, Monarch Money) are powerful but complex, subscrip
 - Is receipt scanning a must-have for public launch?
 - Should the app support Spanish in addition to English for initial launch?
 - Should product analytics be collected for public release? (e.g. usage tracking via Firebase Analytics or Mixpanel) Note: requires explicit user consent strategy and may conflict with "Privacy by default" core principle.
+- Should the platform support merchant logos?

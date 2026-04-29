@@ -3,7 +3,8 @@
 **Version:** 0.1.0
 **Status:** In Progress
 **Owner:** Danielle Mariani
-**Last Updated:** 2026-04-21
+**Created at:** 2026-04-21
+**Last Updated:** 2026-04-27
 
 ## Overview
 Budget App is a personal finance management tool that allows users to track expenses, manage monthly budgets per category, and visualize spending patterns. Built offline-first for Android, with a web dashboard and backend sync in later phases.
@@ -103,7 +104,7 @@ Full schema: specs/technical/data-model.md
 
 ### Data Integrity
 - BR-DI-01: No hard deletes — all entities use soft delete (deleted_at timestamp)
-- BR-DI-02: All entities include created_at and updated_at timestamps
+- BR-DI-02: All entities include `created_at` and `updated_at` timestamps
 - BR-DI-03: Amounts are always stored in cents (integer) to avoid float precision issues
 - BR-DI-04: All dates are stored in UTC, displayed in device local time
 
