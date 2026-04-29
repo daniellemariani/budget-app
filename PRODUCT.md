@@ -1,6 +1,6 @@
 # Product - Budget App
 
-**Version:** 0.1.0
+**Version:** 1.0.0
 **Status:** In Progress
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-21
