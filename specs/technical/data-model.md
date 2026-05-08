@@ -1,0 +1,404 @@
+# Data Model — Budget App
+
+**Version:** 0.1.0
+**Status:** Draft
+**Owner:** Danielle Mariani
+**Created at:** 2026-04-30
+**Last Updated:** 2026-05-08
+
+## Overview
+
+This document is the canonical database schema reference for the Budget App. It defines every entity, field, constraint, and relationship across all phases. All other documents (feature specs, API contract) reference this file — they do not duplicate schema definitions.
+
+Phase 1 entities are fully defined. Phase 2 entities (User, WorkspaceMember, RecurringTransaction) are stubbed with enough detail to inform Phase 1 field decisions (e.g. `workspace_id` FK, `recurring_id` on Transaction).
+
+## Related Documents
+
+| Document | Purpose |
+|---|---|
+| SPEC.md | Global business rules and feature index |
+| ARCHITECTURE.md | Stack decisions and data layer constraints |
+| specs/technical/api-contract.md | API endpoint definitions |
+| specs/technical/offline-sync.md | Sync strategy and conflict resolution |
+
+---
+
+## Design Principles
+
+These principles are enforced at the database layer across all platforms and phases.
+
+| Principle | Rule |
+|---|---|
+| Soft delete | All entities use `deleted_at` (nullable timestamp). Hard deletes are never performed. (BR-DI-01) |
+| Audit timestamps | All entities include `created_at` and `updated_at`. (BR-DI-02) |
+| Amounts as integers | All monetary values stored in cents as `INTEGER`. Never `REAL` or `FLOAT`. (BR-DI-03) |
+| UTC dates | All timestamps stored in UTC. Converted to device local time in the UI layer. (BR-DI-04) |
+| Workspace isolation | All direct financial entities carry a `workspace_id` FK from Phase 1 for query performance and security boundary enforcement. (BR-WS-01). Leaf nodes accessed only through a parent (e.g. GoalContribution via Goal) are excluded. |
+| Currency codes | ISO 4217 three-letter codes used throughout (e.g. `USD`, `EUR`, `MXN`). |
+
+---
+
+## Entity Reference
+
+### Workspace
+
+Top-level container for all financial data. A default Workspace (`id: 1, name: "default"`) is seeded on first launch and used transparently in Phase 1. Not visible in the UI in Phase 1.
+
+**Phase:** 1
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| name | TEXT | No | — | Workspace display name |
+| base_currency | TEXT | No | `USD` | ISO 4217 code. Default currency for all accounts in this workspace. |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+**Constraints:**
+- `name` must be non-empty
+- `base_currency` must be a valid ISO 4217 code
+- The default Workspace (`id: 1`) cannot be deleted (BR-WS-04)
+- A Workspace cannot be deleted if it is the last remaining one (BR-WS-03)
+
+---
+
+### Account
+
+A financial source belonging to a Workspace (e.g. Checking, Savings, Credit Card, Cash). Each Account has its own currency.
+
+**Phase:** 1
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| name | TEXT | No | — | User-defined account name (e.g. "Chase Checking") |
+| type | TEXT | No | — | ENUM: `CHECKING`, `SAVINGS`, `CREDIT_CARD`, `CASH` |
+| currency_code | TEXT | No | workspace base_currency | ISO 4217 code. Independent per account. (BR-CU-02) |
+| initial_balance | INTEGER | No | 0 | Opening balance in cents. Positive for assets, positive for credit card debt outstanding. |
+| credit_limit | INTEGER | Yes | null | Credit limit in cents. Applicable to `CREDIT_CARD` accounts only. Used to calculate available credit in the UI. |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+**Constraints:**
+- `type` must be one of the defined ENUM values
+- `currency_code` must be a valid ISO 4217 code
+- `credit_limit` is only meaningful when `type = CREDIT_CARD`. Ignored for all other account types.
+- `credit_limit` must be a positive integer when set (> 0)
+- Cannot be soft-deleted if it has associated transactions or transfers. User must reassign first. (BR-AC-03)
+- Credit card balance represents debt outstanding, not available funds. (BR-AC-01)
+
+---
+
+### Category
+
+A user-defined label for grouping transactions. System-seeded defaults are provided on first launch and cannot be deleted, only hidden.
+
+**Phase:** 1
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| name | TEXT | No | — | Display name (e.g. "Groceries", "Utilities") |
+| icon | TEXT | Yes | null | Emoji character used as the category icon (e.g. `🛒`, `💡`). Optional. |
+| is_default | INTEGER | No | 0 | Boolean flag. 1 = system-seeded default category. |
+| is_hidden | INTEGER | No | 0 | Boolean flag. 1 = hidden from selection UI. |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+**Constraints:**
+- Cannot be soft-deleted if it has associated transactions. User must reassign transactions first. (BR-CA-01)
+- Default categories (`is_default = 1`) cannot be soft-deleted, only hidden. (BR-CA-02)
+- `name` must be non-empty
+
+---
+
+### Merchant
+
+A user-defined entity representing a seller or service provider. Linked optionally to transactions.
+
+**Phase:** 1
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| name | TEXT | No | — | Merchant display name (e.g. "Trader Joe's", "Netflix") |
+| logo_url | TEXT | Yes | null | Optional URL to merchant logo image. Manually entered in Phase 1. |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+**Constraints:**
+- Can be soft-deleted regardless of associated transactions. Existing transactions retain the merchant reference, but the merchant is hidden from selection. (BR-ME-01)
+- `name` must be non-empty
+
+---
+
+### Transaction
+
+A single income or expense entry. Always belongs to one Account and one Category. Optionally linked to a Merchant.
+
+**Phase:** 1
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| account_id | INTEGER | No | — | FK → Account.id |
+| category_id | INTEGER | No | — | FK → Category.id |
+| merchant_id | INTEGER | Yes | null | FK → Merchant.id. Optional. |
+| recurring_id | INTEGER | Yes | null | FK → RecurringTransaction.id. Null in Phase 1. (Phase 2) |
+| type | TEXT | No | — | ENUM: `INCOME`, `EXPENSE` |
+| amount | INTEGER | No | — | Amount in cents. Always stored as positive integer. (BR-TX-01) |
+| currency_code | TEXT | No | — | ISO 4217 code. Inherited from Account at creation time. Immutable after creation. (BR-CU-03) |
+| date | INTEGER | No | — | Transaction date. Unix timestamp, UTC. |
+| notes | TEXT | Yes | null | Optional free-text note |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+**Constraints:**
+- `type` must be one of the defined ENUM values
+- `amount` must be a positive integer (> 0)
+- `currency_code` is set at creation time from the linked Account and cannot be modified after (BR-CU-03)
+- Transfers are separate entities and are never stored as Transactions (BR-TX-02)
+
+---
+
+### Transfer
+
+A movement of money between two accounts. Not counted as income or expense. Both accounts must share the same currency in Phase 1.
+
+**Phase:** 1
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| from_account_id | INTEGER | No | — | FK → Account.id. Source account. |
+| to_account_id | INTEGER | No | — | FK → Account.id. Destination account. |
+| amount | INTEGER | No | — | Amount in cents. Always positive. |
+| currency_code | TEXT | No | — | ISO 4217 code. Inherited from source account. |
+| date | INTEGER | No | — | Transfer date. Unix timestamp, UTC. |
+| notes | TEXT | Yes | null | Optional free-text note |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+**Constraints:**
+- `from_account_id` and `to_account_id` must both be present and must be different accounts (BR-TR-01)
+- `from_account_id` and `to_account_id` must share the same `currency_code` in Phase 1 (BR-TR-02)
+- `amount` must be a positive integer (> 0)
+- Transfers must not have a category (BR-TR-01)
+
+---
+
+### Budget
+
+An optional monthly spending plan for a Category. Non-blocking — transactions are never prevented by budget status. Budget rows are per calendar month. A `carry_forward` flag causes the app to auto-generate next month's budget with the same amount when a new period begins.
+
+**Phase:** 1
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| category_id | INTEGER | No | — | FK → Category.id |
+| amount | INTEGER | No | — | Planned monthly spending in cents. |
+| currency_code | TEXT | No | workspace base_currency | ISO 4217 code. Denominated in workspace base_currency in Phase 1. (BR-CU-05) |
+| period_year | INTEGER | No | — | Calendar year of the budget period (e.g. 2026) |
+| period_month | INTEGER | No | — | Calendar month of the budget period (1–12) |
+| carry_forward | INTEGER | No | 1 | Boolean flag. 1 = auto-generate this budget for the next month when a new period begins. 0 = one-off budget for this month only. |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+**Constraints:**
+- One budget per category per month per workspace. Unique on `(workspace_id, category_id, period_year, period_month)` where `deleted_at IS NULL`
+- `amount` must be a positive integer (> 0)
+- `period_month` must be between 1 and 12
+- Budget period is always a calendar month (BR-BU-01)
+- Budgets are optional — transactions can exist without a corresponding budget (BR-BU-02)
+- Budgets are non-blocking (BR-BU-03, BR-BU-04)
+- Unused budget does not roll over (BR-BU-05)
+- When `carry_forward = 1`, the app auto-generates next month's budget row on first access of a new period. Auto-generated rows are independent — editing or deleting one does not affect other months. If a month is skipped, all missing months are generated in sequence up to the current period.
+
+---
+
+### Goal
+
+A specific, actionable financial target (e.g. Emergency Fund, Trip to Hawaii).
+
+**Phase:** 1
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| name | TEXT | No | — | Goal display name (e.g. "Hawaii Trip") |
+| target_amount | INTEGER | No | — | Target amount in cents. |
+| currency_code | TEXT | No | workspace base_currency | ISO 4217 code. |
+| target_date | INTEGER | Yes | null | Optional target completion date. Unix timestamp, UTC. |
+| notes | TEXT | Yes | null | Optional free-text note |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+**Constraints:**
+- `target_amount` must be a positive integer (> 0)
+- `currency_code` must be a valid ISO 4217 code
+- Goal progress is calculated at query time as `SUM(GoalContribution.amount) / target_amount` (BR-GL-01)
+
+---
+
+### GoalContribution
+
+A manual payment toward a Goal. Tracked independently from monthly category budgets. Workspace is derived through the parent Goal — no direct `workspace_id` needed.
+
+**Phase:** 1
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| goal_id | INTEGER | No | — | FK → Goal.id |
+| amount | INTEGER | No | — | Contribution amount in cents. |
+| currency_code | TEXT | No | — | ISO 4217 code. Inherited from parent Goal. |
+| date | INTEGER | No | — | Contribution date. Unix timestamp, UTC. |
+| notes | TEXT | Yes | null | Optional free-text note |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+**Constraints:**
+- `amount` must be a positive integer (> 0)
+- `currency_code` is inherited from the parent Goal and cannot differ
+- Goal contributions are tracked independently from monthly budgets (BR-GL-02)
+
+---
+
+## Phase 2 Entities
+
+The following entities are stubbed for planning purposes. Full schema is defined at Phase 2 kickoff. Fields marked here reflect what Phase 1 already accounts for (e.g. `recurring_id` on Transaction).
+
+---
+
+### User *(Phase 2)*
+
+Represents an authenticated user. Introduced when Supabase Auth is added. In Phase 1, a single anonymous owner is assumed.
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| supabase_uid | TEXT | No | — | Supabase Auth user ID. Unique. |
+| email | TEXT | No | — | User email address. Unique. |
+| display_name | TEXT | Yes | null | Optional display name |
+| avatar_url | TEXT | Yes | null | Optional avatar URL (Supabase Storage) |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+---
+
+### WorkspaceMember *(Phase 2)*
+
+Junction entity linking a User to a Workspace with an assigned role. Manages multi-user access and permissions.
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| user_id | INTEGER | No | — | FK → User.id |
+| role | TEXT | No | — | ENUM: `OWNER`, `ADMIN`, `MEMBER`, `VIEWER` |
+| invited_at | INTEGER | Yes | null | Timestamp when the invitation was sent. Unix timestamp, UTC. |
+| joined_at | INTEGER | Yes | null | Timestamp when the user accepted. Unix timestamp, UTC. |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete; used to revoke access without destroying the record. |
+
+**Constraints:**
+- Unique on `(workspace_id, user_id)` where `deleted_at IS NULL`
+- Each Workspace must have exactly one active `OWNER` (BR-WS-05)
+- `role` must be one of the defined ENUM values
+
+---
+
+### RecurringTransaction *(Phase 2)*
+
+A template that generates scheduled Transaction entries automatically. Transactions generated from a template carry a `recurring_id` FK back to this entity.
+
+| Field | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| id | INTEGER | No | autoincrement | Primary key |
+| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| account_id | INTEGER | No | — | FK → Account.id |
+| category_id | INTEGER | No | — | FK → Category.id |
+| merchant_id | INTEGER | Yes | null | FK → Merchant.id. Optional. |
+| type | TEXT | No | — | ENUM: `INCOME`, `EXPENSE` |
+| amount | INTEGER | No | — | Amount in cents. Always positive. |
+| currency_code | TEXT | No | — | ISO 4217 code. Inherited from Account. |
+| frequency | TEXT | No | — | ENUM: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY` |
+| start_date | INTEGER | No | — | First occurrence date. Unix timestamp, UTC. |
+| end_date | INTEGER | Yes | null | Optional end date. Unix timestamp, UTC. |
+| total_installments | INTEGER | Yes | null | Optional. Total number of installments if installment-based. |
+| remaining_installments | INTEGER | Yes | null | Optional. Remaining installments. Decremented on each generation. |
+| notes | TEXT | Yes | null | Optional free-text note |
+| created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
+| deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+
+---
+
+## Entity Relationship Summary
+
+```
+Workspace
+├── Account (workspace_id)
+├── Category (workspace_id)
+├── Merchant (workspace_id)
+├── Transaction (workspace_id)
+│   ├── → Account (account_id)
+│   ├── → Category (category_id)
+│   ├── → Merchant (merchant_id, optional)
+│   └── → RecurringTransaction (recurring_id, optional — Phase 2)
+├── Transfer (workspace_id)
+│   ├── → Account (from_account_id)
+│   └── → Account (to_account_id)
+├── Budget (workspace_id)
+│   └── → Category (category_id)
+├── Goal (workspace_id)
+│   └── GoalContribution (goal_id)     # no workspace_id — derived via Goal
+└── WorkspaceMember (workspace_id — Phase 2)
+    └── → User (user_id — Phase 2)
+```
+
+---
+
+## Indexes
+
+Indexes are listed per entity for fields that appear frequently in queries, filters, or joins.
+
+| Entity | Index Fields | Rationale |
+|---|---|---|
+| Transaction | `(workspace_id, date)` | Date-range queries for period reporting |
+| Transaction | `(workspace_id, account_id)` | Account transaction history |
+| Transaction | `(workspace_id, category_id)` | Budget spending calculations |
+| Transaction | `(workspace_id, deleted_at)` | Soft delete filter on all list queries |
+| Budget | `(workspace_id, category_id, period_year, period_month)` | Budget lookup per category per period |
+| Transfer | `(workspace_id, date)` | Date-range transfer queries |
+| Transfer | `(workspace_id, from_account_id)` | Account transfer history |
+| Transfer | `(workspace_id, to_account_id)` | Account transfer history |
+| GoalContribution | `(goal_id)` | Progress calculation per goal |
+| WorkspaceMember | `(workspace_id, user_id)` | Member lookup and deduplication (Phase 2) |
+
+---
+
+## Changelog
+
+| Version | Date | Author | Notes |
+|---|---|---|---|
+| 0.1.0 | 2026-05-08 | Danielle Mariani | Initial entity draft |
