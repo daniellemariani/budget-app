@@ -1,10 +1,10 @@
 # ARCHITECTURE.md — Budget App
 
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Status:** In Progress
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-23
-**Last Updated:** 2026-04-28
+**Last Updated:** 2026-05-08
 
 ## Overview
 
@@ -67,27 +67,28 @@ MVVM with a Repository layer separating the ViewModel from data access.
 
 ```
 UI (Composables)
-    └── ViewModel          # UI state, user events, business logic coordination
-        └── Repository     # Data access interface, abstracts Room
-            └── DAO        # Room DAOs, raw SQL queries
-                └── Room Database
+    └── ViewModel              # UI state, user events, business logic coordination
+        └── Use Case           # Single Business Operation
+            └── Repository     # Data access interface, abstracts Room
+                └── DAO        # Room DAOs, raw SQL queries
+                    └── Room Database
 ```
 
 - ViewModels are scoped to composable destinations via `hiltViewModel()`
-- Repositories are injected into ViewModels via Hilt
+- Use cases are injected into ViewModels via Hilt. Repositories are injected into use cases via Hilt
 - DAOs are injected into Repositories via Hilt
 - All data access is asynchronous using Coroutines and Flow
 - The UI layer observes StateFlow from the ViewModel and never accesses the Repository directly
 
 ### Package Structure
 
-Feature-based. Each feature is organized layer-based internally. Each feature owns its own UI, ViewModel, Repository, and DAO files.
+Feature-based. Each feature is organized layer-based internally. Each feature owns its own UI, ViewModel and Repository files. The Domain package inside each feature follows a Clean Architecture approach, where each use case represents a single business operation and the ViewModel depends on use cases, not directly on the Repository. Domain entities are pure Kotlin with no framework dependencies. Mappers convert between domain models, Room entities, and network DTOs at layer boundaries.
 
 ```
 android/src/main/java/com/budgetapp/
 ├── core/
 │   ├── ui/                            # shared Composables, theme, design tokens
-│   ├── domain/                        # Transaction.kt, Budget.kt, Account.kt, ...
+│   ├── domain/                        # pure business objet. Domain entities: Transaction.kt, Budget.kt, Account.kt, ...
 │   └── data/
 │       ├── AppDatabase.kt             # Room database definition
 │       ├── TransactionDao.kt
@@ -117,10 +118,18 @@ feature/transactions/
 │   ├── TransactionScreen.kt           # Composable UI
 │   └── TransactionViewModel.kt        # UI state + events
 ├── domain/
-│   └── TransactionRepository.kt       # interface only
+│   ├── TransactionRepository.kt       # interface
+│   ├── CreateTransactionUseCase.kt
+│   ├── UpdateTransactionUseCase.kt
+│   ├── DeleteTransactionUseCase.kt
+│   └── GetTransactionsUseCase.kt
 └── data/
+    ├── local
+    │   └── TransactionLocalDataSource.kt
     └── TransactionRepositoryImpl.kt   # implements domain interface
 ```
+
+Note: Feature Data package includes a `local/` directory from Phase 1. A `remote/` directory is added in Phase 2 when backend sync is introduced.
 
 ### Local Database
 
@@ -227,10 +236,25 @@ Bidirectional sync between the Android client and the backend. Full strategy and
 
 High-level approach:
 
-- Client tracks a `last_synced_at` watermark per entity type
-- Sync is triggered on app foreground when connectivity is available
+**Sync triggers:**
+- App foreground (connectivity check on resume)
+- Manual pull-to-refresh
+- Periodic background sync via WorkManager (Phase 2)
+
+**Conflict resolution:**
 - Server is the authoritative source for conflict resolution
 - Soft-deleted records are synced so deletions propagate across devices
+
+**Failure handling:**
+- Retry with exponential backoff
+- Sync status tracked per entity via `last_synced_at` timestamp
+- Foreground and manual sync failures surface a visible error state to the user
+
+**Watermark approach:**
+- Client tracks `last_synced_at` per entity
+- Records where `updated_at` > `last_synced_at` have pending local changes
+- Server returns all records modified after the client's `last_synced_at` watermark
+- `last_synced_at` is stored on every entity in the local database (Phase 2 field)
 
 ### Package Structure
 
