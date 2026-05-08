@@ -82,7 +82,15 @@ UI (Composables)
 
 ### Package Structure
 
-Feature-based. Each feature is organized layer-based internally. Each feature owns its own UI, ViewModel and Repository files. The Domain package inside each feature follows a Clean Architecture approach, where each use case represents a single business operation and the ViewModel depends on use cases, not directly on the Repository. Domain entities are pure Kotlin with no framework dependencies. Mappers convert between domain models, Room entities, and network DTOs at layer boundaries.
+Feature-based. Each feature is organized layer-based internally. Each feature owns its own UI, ViewModel and Repository files. The Domain package inside each feature follows a Clean Architecture approach, where each use case represents a single business operation and the ViewModel depends on use cases, not directly on the Repository.
+
+**Domain Model Principles**
+- core/domain/ contains pure Kotlin domain entities — no framework dependencies, no annotations
+- Room entities (@Entity) live in core/data/ — map to database columns
+- Network DTOs live in feature/data/remote/ — mirror API response structure (Phase 2)
+- Mappers convert between domain models, Room entities, and DTOs at layer boundaries
+- UI state models (e.g. TransactionUiState) live in feature/ui/
+
 
 ```
 android/src/main/java/com/budgetapp/

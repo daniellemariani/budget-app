@@ -4,12 +4,12 @@
 Paste this file at the start of any new Claude or Cursor session to restore project context. Update after each significant session.
 
 ## Last Updated
-2026-04-28
+2026-05-08
 
 ## Current Status
 - PRODUCT.md — complete v1.0.0
 - SPEC.md — complete v1.0.0
-- ARCHITECTURE.md — complete v1.0.0
+- ARCHITECTURE.md — complete v1.0.1
 - ROADMAP.md — complete v1.0.0
 - specs/technical/data-model.md — next to write
 - specs/technical/api-contract.md — not started
@@ -30,13 +30,21 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 
 ### Architecture
 - Offline-first: Room is the single source of truth in Phase 1
-- MVVM + Repository pattern on Android
+- MVVM + Clean Architecture on Android
+- ViewModel depends on use cases, not directly on Repository
+- Each use case represents a single business operation
+- Use cases are injected into ViewModels via Hilt
+- Repositories are injected into use cases via Hilt
 - Feature-based package structure (not layer-based)
 - Each feature organized internally by layers: ui/, domain/, data/
 - ViewModels live in ui/
+- Use cases and Repository interface live in domain/
+- Domain entities are pure Kotlin with no framework dependencies
+- Room entities and network DTOs live in the data layer, not domain
+- Mappers convert between domain models, Room entities, and DTOs at layer boundaries
 - Business entity models live in core/domain/
 - DAOs and Room database definition live in core/data/
-- Repository interface lives in feature/[name]/domain/
+- Feature data layer organized per source: local/ from Phase 1, remote/ added in Phase 2
 - Repository implementation lives in feature/[name]/data/
 - Hilt for dependency injection throughout
 - Monorepo structure: android/ backend/ web/ specs/
@@ -46,7 +54,7 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 android/src/main/java/com/budgetapp/
 ├── core/
 │   ├── ui/                            # shared Composables, theme, design tokens
-│   ├── domain/                        # Transaction.kt, Budget.kt, Account.kt, ...
+│   ├── domain/                        # domain entities: Transaction.kt, Budget.kt, Account.kt, ...
 │   └── data/
 │       ├── AppDatabase.kt             # Room database definition
 │       ├── TransactionDao.kt
@@ -75,10 +83,37 @@ feature/transactions/
 │   ├── TransactionScreen.kt           # Composable UI
 │   └── TransactionViewModel.kt        # UI state + events
 ├── domain/
-│   └── TransactionRepository.kt       # interface only
+│   ├── TransactionRepository.kt       # interface only
+│   ├── CreateTransactionUseCase.kt
+│   ├── UpdateTransactionUseCase.kt
+│   ├── DeleteTransactionUseCase.kt
+│   └── GetTransactionsUseCase.kt
 └── data/
-    └── TransactionRepositoryImpl.kt   # implements domain interface
+    ├── local/
+    │   └── TransactionLocalDataSource.kt    # wraps DAO calls (Phase 1)
+    ├── remote/
+    │   └── TransactionRemoteDataSource.kt   # wraps Retrofit calls (Phase 2)
+    └── TransactionRepositoryImpl.kt         # implements domain interface
 ```
+
+Note: Feature Data package includes a `local/` directory from Phase 1. A `remote/` directory is added in Phase 2 when backend sync is introduced.
+
+### Android Layer Diagram
+```
+UI (Composables)
+    └── ViewModel              # UI state, user events
+        └── UseCase            # single business operation
+            └── Repository     # data access interface
+                └── DAO        # Room DAOs, raw SQL queries
+                    └── Room Database
+```
+
+### Domain Model Principles
+- core/domain/ contains pure Kotlin domain entities — no framework dependencies, no annotations
+- Room entities (@Entity) live in core/data/ — map to database columns
+- Network DTOs live in feature/data/remote/ — mirror API response structure (Phase 2)
+- Mappers convert between domain models, Room entities, and DTOs at layer boundaries
+- UI state models (e.g. TransactionUiState) live in feature/ui/
 
 ### Backend Architecture
 - Monolith — single FastAPI app exposing all APIs
@@ -171,12 +206,34 @@ web/src/
 - Transfers are immutable once created
 - Transfers between different currency accounts not supported in Phase 1
 
+### Sync Strategy
+**Sync triggers:**
+- App foreground (connectivity check on resume)
+- Manual pull-to-refresh
+- Periodic background sync via WorkManager (Phase 2)
+
+**Conflict resolution:**
+- Server is the authoritative source for conflict resolution
+- Soft-deleted records are synced so deletions propagate across devices
+
+**Failure handling:**
+- Retry with exponential backoff
+- Sync status tracked per entity via last_synced_at timestamp
+- Foreground and manual sync failures surface a visible error state to the user
+
+**Watermark approach:**
+- Client tracks last_synced_at per entity
+- Records where updated_at > last_synced_at have pending local changes
+- Server returns all records modified after the client's last_synced_at watermark
+- last_synced_at is stored on every entity in the local database (Phase 2 field)
+
 ### Auth Flow (Phase 2+)
 ```
 User → Android App or Web (Supabase SDK, gets JWT)
      → FastAPI (validates JWT using SUPABASE_JWT_SECRET)
      → PostgreSQL on Supabase (via direct connection string)
 ```
+Note: The same JWT pattern applies in Phase 3.
 
 ### Testing Strategy
 | Platform | Unit                     | Integration                        | UI       |
