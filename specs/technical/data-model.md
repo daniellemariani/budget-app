@@ -1,6 +1,6 @@
 # Data Model — Budget App
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-30
@@ -33,8 +33,9 @@ These principles are enforced at the database layer across all platforms and pha
 | Audit timestamps | All entities include `created_at` and `updated_at`. (BR-DI-02) |
 | Amounts as integers | All monetary values stored in cents as `INTEGER`. Never `REAL` or `FLOAT`. (BR-DI-03) |
 | UTC dates | All timestamps stored in UTC. Converted to device local time in the UI layer. (BR-DI-04) |
-| Workspace isolation | All direct financial entities carry a `workspace_id` FK from Phase 1 for query performance and security boundary enforcement. (BR-WS-01). Leaf nodes accessed only through a parent (e.g. GoalContribution via Goal) are excluded. |
+| Workspace isolation | All direct financial entities carry a `workspace_id` FK from Phase 1 for query performance and security boundary enforcement. (BR-WS-01) |
 | Currency codes | ISO 4217 three-letter codes used throughout (e.g. `USD`, `EUR`, `MXN`). |
+| Sync | All entities use `last_synced_at` (nullable timestamp) required for Phase 2 |
 
 ---
 
@@ -54,6 +55,7 @@ Top-level container for all financial data. A default Workspace (`id: 1, name: "
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `name` must be non-empty
@@ -81,6 +83,7 @@ A financial source belonging to a Workspace (e.g. Checking, Savings, Credit Card
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `type` must be one of the defined ENUM values
@@ -109,6 +112,7 @@ A user-defined label for grouping transactions. System-seeded defaults are provi
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - Cannot be soft-deleted if it has associated transactions. User must reassign transactions first. (BR-CA-01)
@@ -132,6 +136,7 @@ A user-defined entity representing a seller or service provider. Linked optional
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - Can be soft-deleted regardless of associated transactions. Existing transactions retain the merchant reference, but the merchant is hidden from selection. (BR-ME-01)
@@ -161,6 +166,7 @@ A single income or expense entry. Always belongs to one Account and one Category
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `type` must be one of the defined ENUM values
@@ -189,6 +195,7 @@ A movement of money between two accounts. Not counted as income or expense. Both
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `from_account_id` and `to_account_id` must both be present and must be different accounts (BR-TR-01)
@@ -217,6 +224,7 @@ An optional monthly spending plan for a Category. Non-blocking — transactions 
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - One budget per category per month per workspace. Unique on `(workspace_id, category_id, period_year, period_month)` where `deleted_at IS NULL`
@@ -248,6 +256,7 @@ A specific, actionable financial target (e.g. Emergency Fund, Trip to Hawaii).
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `target_amount` must be a positive integer (> 0)
@@ -258,13 +267,14 @@ A specific, actionable financial target (e.g. Emergency Fund, Trip to Hawaii).
 
 ### GoalContribution
 
-A manual payment toward a Goal. Tracked independently from monthly category budgets. Workspace is derived through the parent Goal — no direct `workspace_id` needed.
+A manual payment toward a Goal. Tracked independently from monthly category budgets.
 
 **Phase:** 1
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
 | id | INTEGER | No | autoincrement | Primary key |
+| workspace_id | INTEGER | No | — | FK → Workspace.id |
 | goal_id | INTEGER | No | — | FK → Goal.id |
 | amount | INTEGER | No | — | Contribution amount in cents. |
 | currency_code | TEXT | No | — | ISO 4217 code. Inherited from parent Goal. |
@@ -273,6 +283,7 @@ A manual payment toward a Goal. Tracked independently from monthly category budg
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `amount` must be a positive integer (> 0)
@@ -301,6 +312,7 @@ Represents an authenticated user. Introduced when Supabase Auth is added. In Pha
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 ---
 
@@ -319,6 +331,7 @@ Junction entity linking a User to a Workspace with an assigned role. Manages mul
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete; used to revoke access without destroying the record. |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - Unique on `(workspace_id, user_id)` where `deleted_at IS NULL`
@@ -350,6 +363,7 @@ A template that generates scheduled Transaction entries automatically. Transacti
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
 
 ---
 
@@ -371,7 +385,7 @@ Workspace
 ├── Budget (workspace_id)
 │   └── → Category (category_id)
 ├── Goal (workspace_id)
-│   └── GoalContribution (goal_id)     # no workspace_id — derived via Goal
+│   └── GoalContribution (goal_id)
 └── WorkspaceMember (workspace_id — Phase 2)
     └── → User (user_id — Phase 2)
 ```
@@ -392,7 +406,7 @@ Indexes are listed per entity for fields that appear frequently in queries, filt
 | Transfer | `(workspace_id, date)` | Date-range transfer queries |
 | Transfer | `(workspace_id, from_account_id)` | Account transfer history |
 | Transfer | `(workspace_id, to_account_id)` | Account transfer history |
-| GoalContribution | `(goal_id)` | Progress calculation per goal |
+| GoalContribution | `(workspace_id, goal_id)` | Progress calculation per goal |
 | WorkspaceMember | `(workspace_id, user_id)` | Member lookup and deduplication (Phase 2) |
 
 ---
@@ -402,3 +416,4 @@ Indexes are listed per entity for fields that appear frequently in queries, filt
 | Version | Date | Author | Notes |
 |---|---|---|---|
 | 0.1.0 | 2026-05-08 | Danielle Mariani | Initial entity draft |
+| 0.2.0 | 2026-05-08 | Danielle Mariani | Add workspace_id to GoalContribution. Add last_synced_at to each entity |
