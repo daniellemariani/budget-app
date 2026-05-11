@@ -1,10 +1,10 @@
 # Data Model — Budget App
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-30
-**Last Updated:** 2026-05-08
+**Last Updated:** 2026-05-11
 
 ## Overview
 
@@ -35,7 +35,8 @@ These principles are enforced at the database layer across all platforms and pha
 | UTC dates | All timestamps stored in UTC. Converted to device local time in the UI layer. (BR-DI-04) |
 | Workspace isolation | All direct financial entities carry a `workspace_id` FK from Phase 1 for query performance and security boundary enforcement. (BR-WS-01) |
 | Currency codes | ISO 4217 three-letter codes used throughout (e.g. `USD`, `EUR`, `MXN`). |
-| Sync | All entities use `last_synced_at` (nullable timestamp) required for Phase 2 |
+| Primary keys | All entities use UUID v4 (TEXT) as primary key, generated client-side at creation time. Ensures global uniqueness across devices without server coordination. Supports offline-first sync introduced in Phase 2. SQLite stores UUIDs as TEXT. |
+| Sync | All entities include `last_synced_at` (nullable INTEGER timestamp), present from Phase 1 to avoid future migrations. Unused until Phase 2. |
 
 ---
 
@@ -43,13 +44,13 @@ These principles are enforced at the database layer across all platforms and pha
 
 ### Workspace
 
-Top-level container for all financial data. A default Workspace (`id: 1, name: "default"`) is seeded on first launch and used transparently in Phase 1. Not visible in the UI in Phase 1.
+Top-level container for all financial data. A default Workspace is created on first launch with a newly generated UUID. It is used transparently in Phase 1 and is not visible in the UI.
 
 **Phase:** 1
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
 | name | TEXT | No | — | Workspace display name |
 | base_currency | TEXT | No | `USD` | ISO 4217 code. Default currency for all accounts in this workspace. |
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
@@ -60,7 +61,7 @@ Top-level container for all financial data. A default Workspace (`id: 1, name: "
 **Constraints:**
 - `name` must be non-empty
 - `base_currency` must be a valid ISO 4217 code
-- The default Workspace (`id: 1`) cannot be deleted (BR-WS-04)
+- The default Workspace (created on first launch) cannot be deleted (BR-WS-04)
 - A Workspace cannot be deleted if it is the last remaining one (BR-WS-03)
 
 ---
@@ -73,8 +74,8 @@ A financial source belonging to a Workspace (e.g. Checking, Savings, Credit Card
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
-| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
+| workspace_id | TEXT | No | — | FK → Workspace.id |
 | name | TEXT | No | — | User-defined account name (e.g. "Chase Checking") |
 | type | TEXT | No | — | ENUM: `CHECKING`, `SAVINGS`, `CREDIT_CARD`, `CASH` |
 | currency_code | TEXT | No | workspace base_currency | ISO 4217 code. Independent per account. (BR-CU-02) |
@@ -103,8 +104,8 @@ A user-defined label for grouping transactions. System-seeded defaults are provi
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
-| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
+| workspace_id | TEXT | No | — | FK → Workspace.id |
 | name | TEXT | No | — | Display name (e.g. "Groceries", "Utilities") |
 | icon | TEXT | Yes | null | Emoji character used as the category icon (e.g. `🛒`, `💡`). Optional. |
 | is_default | INTEGER | No | 0 | Boolean flag. 1 = system-seeded default category. |
@@ -129,8 +130,8 @@ A user-defined entity representing a seller or service provider. Linked optional
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
-| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
+| workspace_id | TEXT | No | — | FK → Workspace.id |
 | name | TEXT | No | — | Merchant display name (e.g. "Trader Joe's", "Netflix") |
 | logo_url | TEXT | Yes | null | Optional URL to merchant logo image. Manually entered in Phase 1. |
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
@@ -152,12 +153,12 @@ A single income or expense entry. Always belongs to one Account and one Category
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
-| workspace_id | INTEGER | No | — | FK → Workspace.id |
-| account_id | INTEGER | No | — | FK → Account.id |
-| category_id | INTEGER | No | — | FK → Category.id |
-| merchant_id | INTEGER | Yes | null | FK → Merchant.id. Optional. |
-| recurring_id | INTEGER | Yes | null | FK → RecurringTransaction.id. Null in Phase 1. (Phase 2) |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
+| workspace_id | TEXT | No | — | FK → Workspace.id |
+| account_id | TEXT | No | — | FK → Account.id |
+| category_id | TEXT | No | — | FK → Category.id |
+| merchant_id | TEXT | Yes | null | FK → Merchant.id. Optional. |
+| recurring_id | TEXT | Yes | null | FK → RecurringTransaction.id. Null in Phase 1. (Phase 2) |
 | type | TEXT | No | — | ENUM: `INCOME`, `EXPENSE` |
 | amount | INTEGER | No | — | Amount in cents. Always stored as positive integer. (BR-TX-01) |
 | currency_code | TEXT | No | — | ISO 4217 code. Inherited from Account at creation time. Immutable after creation. (BR-CU-03) |
@@ -184,10 +185,10 @@ A movement of money between two accounts. Not counted as income or expense. Both
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
-| workspace_id | INTEGER | No | — | FK → Workspace.id |
-| from_account_id | INTEGER | No | — | FK → Account.id. Source account. |
-| to_account_id | INTEGER | No | — | FK → Account.id. Destination account. |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
+| workspace_id | TEXT | No | — | FK → Workspace.id |
+| from_account_id | TEXT | No | — | FK → Account.id. Source account. |
+| to_account_id | TEXT | No | — | FK → Account.id. Destination account. |
 | amount | INTEGER | No | — | Amount in cents. Always positive. |
 | currency_code | TEXT | No | — | ISO 4217 code. Inherited from source account. |
 | date | INTEGER | No | — | Transfer date. Unix timestamp, UTC. |
@@ -213,9 +214,9 @@ An optional monthly spending plan for a Category. Non-blocking — transactions 
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
-| workspace_id | INTEGER | No | — | FK → Workspace.id |
-| category_id | INTEGER | No | — | FK → Category.id |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
+| workspace_id | TEXT | No | — | FK → Workspace.id |
+| category_id | TEXT | No | — | FK → Category.id |
 | amount | INTEGER | No | — | Planned monthly spending in cents. |
 | currency_code | TEXT | No | workspace base_currency | ISO 4217 code. Denominated in workspace base_currency in Phase 1. (BR-CU-05) |
 | period_year | INTEGER | No | — | Calendar year of the budget period (e.g. 2026) |
@@ -246,8 +247,8 @@ A specific, actionable financial target (e.g. Emergency Fund, Trip to Hawaii).
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
-| workspace_id | INTEGER | No | — | FK → Workspace.id |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
+| workspace_id | TEXT | No | — | FK → Workspace.id |
 | name | TEXT | No | — | Goal display name (e.g. "Hawaii Trip") |
 | target_amount | INTEGER | No | — | Target amount in cents. |
 | currency_code | TEXT | No | workspace base_currency | ISO 4217 code. |
@@ -273,9 +274,9 @@ A manual payment toward a Goal. Tracked independently from monthly category budg
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
-| workspace_id | INTEGER | No | — | FK → Workspace.id |
-| goal_id | INTEGER | No | — | FK → Goal.id |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
+| workspace_id | TEXT | No | — | FK → Workspace.id |
+| goal_id | TEXT | No | — | FK → Goal.id |
 | amount | INTEGER | No | — | Contribution amount in cents. |
 | currency_code | TEXT | No | — | ISO 4217 code. Inherited from parent Goal. |
 | date | INTEGER | No | — | Contribution date. Unix timestamp, UTC. |
@@ -304,7 +305,7 @@ Represents an authenticated user. Introduced when Supabase Auth is added. In Pha
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
 | supabase_uid | TEXT | No | — | Supabase Auth user ID. Unique. |
 | email | TEXT | No | — | User email address. Unique. |
 | display_name | TEXT | Yes | null | Optional display name |
@@ -312,7 +313,7 @@ Represents an authenticated user. Introduced when Supabase Auth is added. In Pha
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
-| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. (Phase 2) |
 
 ---
 
@@ -322,16 +323,16 @@ Junction entity linking a User to a Workspace with an assigned role. Manages mul
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
-| workspace_id | INTEGER | No | — | FK → Workspace.id |
-| user_id | INTEGER | No | — | FK → User.id |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
+| workspace_id | TEXT | No | — | FK → Workspace.id |
+| user_id | TEXT | No | — | FK → User.id |
 | role | TEXT | No | — | ENUM: `OWNER`, `ADMIN`, `MEMBER`, `VIEWER` |
 | invited_at | INTEGER | Yes | null | Timestamp when the invitation was sent. Unix timestamp, UTC. |
 | joined_at | INTEGER | Yes | null | Timestamp when the user accepted. Unix timestamp, UTC. |
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete; used to revoke access without destroying the record. |
-| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. (Phase 2) |
 
 **Constraints:**
 - Unique on `(workspace_id, user_id)` where `deleted_at IS NULL`
@@ -346,11 +347,11 @@ A template that generates scheduled Transaction entries automatically. Transacti
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| id | INTEGER | No | autoincrement | Primary key |
-| workspace_id | INTEGER | No | — | FK → Workspace.id |
-| account_id | INTEGER | No | — | FK → Account.id |
-| category_id | INTEGER | No | — | FK → Category.id |
-| merchant_id | INTEGER | Yes | null | FK → Merchant.id. Optional. |
+| id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
+| workspace_id | TEXT | No | — | FK → Workspace.id |
+| account_id | TEXT | No | — | FK → Account.id |
+| category_id | TEXT | No | — | FK → Category.id |
+| merchant_id | TEXT | Yes | null | FK → Merchant.id. Optional. |
 | type | TEXT | No | — | ENUM: `INCOME`, `EXPENSE` |
 | amount | INTEGER | No | — | Amount in cents. Always positive. |
 | currency_code | TEXT | No | — | ISO 4217 code. Inherited from Account. |
@@ -363,7 +364,7 @@ A template that generates scheduled Transaction entries automatically. Transacti
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
-| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. (Phase 2) |
 
 ---
 
@@ -385,7 +386,7 @@ Workspace
 ├── Budget (workspace_id)
 │   └── → Category (category_id)
 ├── Goal (workspace_id)
-│   └── GoalContribution (goal_id)
+│   └── GoalContribution (workspace_id, goal_id)
 └── WorkspaceMember (workspace_id — Phase 2)
     └── → User (user_id — Phase 2)
 ```
@@ -416,4 +417,5 @@ Indexes are listed per entity for fields that appear frequently in queries, filt
 | Version | Date | Author | Notes |
 |---|---|---|---|
 | 0.1.0 | 2026-05-08 | Danielle Mariani | Initial entity draft |
-| 0.2.0 | 2026-05-08 | Danielle Mariani | Add workspace_id to GoalContribution. Add last_synced_at to each entity |
+| 0.2.0 | 2026-05-08 | Danielle Mariani | Add workspace_id to GoalContribution. Add last_synced_at to all entities. |
+| 0.3.0 | 2026-05-11 | Danielle Mariani | Switch all primary keys and foreign keys to UUID v4 (TEXT). Default Workspace now uses a generated UUID instead of a hardcoded id. Tighten Design Principles wording for Sync and Primary keys. |
