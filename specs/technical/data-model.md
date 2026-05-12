@@ -1,6 +1,6 @@
 # Data Model — Budget App
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-30
