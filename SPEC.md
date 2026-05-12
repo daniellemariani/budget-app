@@ -1,10 +1,10 @@
 # Budget App
 
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Status:** In Progress
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-21
-**Last Updated:** 2026-04-27
+**Last Updated:** 2026-05-11
 
 ## Overview
 Budget App is a personal finance management tool that allows users to track expenses, manage monthly budgets per category, and visualize spending patterns. Built offline-first for Android, with a web dashboard and backend sync in later phases.
@@ -29,6 +29,7 @@ Budget App is a personal finance management tool that allows users to track expe
 | BaseCurrency | The primary currency of a Workspace, set during onboarding and used as the default for all accounts and aggregated display totals. Stored as an ISO 4217 code (e.g. USD, EUR, MXN) |
 | CurrencyCode | An ISO 4217 three-letter currency identifier assigned to each Account and inherited by its Transactions. Determines how amounts are displayed and grouped in reports. (e.g. USD, EUR, MXN, GBP) |
 | ISO 4217 | International standard defining three-letter currency codes (e.g. USD for US Dollar, EUR for Euro, MXN for Mexican Peso) |
+| WorkspaceMember | A user added to a workspace with a role (OWNER, ADMIN, MEMBER, VIEWER) |
 
 ## User Roles
 
@@ -41,6 +42,8 @@ Budget App is a personal finance management tool that allows users to track expe
 - **Admin** — full access to data, can manage members
 - **Member** — full read/write access to transactions and budgets
 - **Viewer** — read-only access (future consideration)
+
+Note: Role assignment is managed through the WorkspaceMember entity in Phase 2+.
 
 ### Workspace model
 Each household or individual is represented as a Workspace. Users can belong to multiple workspaces (e.g. family + personal). All financial data belongs to a Workspace, not a User directly.
@@ -85,18 +88,18 @@ Web-specific behavior is documented in a "Web" section within each existing feat
 ## Data Model Summary
 Core entities and relationships:
 
-- **Category** — belongs to a Workspace, user-defined, has many Transactions and Budgets
+- **Category** — belongs to a Workspace, user-defined, has many Transactions and Budgets, has icon (emoji)
 - **Transaction** — belongs to a Workspace, has one Category and one Account, optionally linked to a Merchant, has amount/date/type/notes
-- **Budget** — monthly limit per Category, has planned amount, has currency_code (USD by default).
-- **Account** — belongs to a Workspace, financial source per Transaction, has currency_code (USD by default)
-- **Merchant** - belongs to a Workspace, user-defined, has many Transactions
+- **Budget** — monthly limit per Category, has planned amount, has currency_code (USD by default), carry_forward (to autogenerate next month's budget)
+- **Account** — belongs to a Workspace, financial source per Transaction, has currency_code (USD by default) and credit_limit (if account is a Credit Card)
+- **Merchant** - belongs to a Workspace, user-defined, has many Transactions, has logo_url
 - **Transfer** — has origin Account and destination Account, has amount/date/notes. currency_code follows the source Account's currency_code.
 - **Goal** - has target amount/target date/currency_code (USD by default)
-- **GoalContribution** — belongs to one Goal, has amount/date/notes. Currency inherited from parent Goal.
+- **GoalContribution** — belongs to one Goal, has workspace_id/amount/date/notes. Currency inherited from parent Goal.
 - **User** — owns all data, introduced in Phase 2
 - **RecurringTransaction** — generates scheduled Transactions, linked back via recurring_id on Transaction, has amount/frequency/start date/end date (optional)/ total installments (optional)/remaining installments (optional), introduced in Phase 2
 - **Workspace** — top-level container for all financial data. A default workspace is created on first launch and used transparently in Phase 1. Has base_currency (USD by default). Multi-workspace support introduced in Phase 4.
-
+- **WorkspaceMember** - junction entity linking a User to a Workspace with an assigned role (OWNER, ADMIN, MEMBER, VIEWER). Introduced in Phase 2.
 
 Full schema: specs/technical/data-model.md
 
@@ -123,6 +126,8 @@ Full schema: specs/technical/data-model.md
 - BR-TX-01: Transaction type (INCOME/EXPENSE) determines sign in balance calculations — amounts always stored as positive integers
 - BR-TX-02: Transfers are not counted as income or expenses in period balance calculations
 
+Note: Cashback and rewards are recorded as INCOME transactions in a user-defined category (e.g. "Cashback"). No special field or entity needed. Revisit in Phase 2 per existing Out of Scope note.
+
 ### Accounts
 - BR-AC-01: Credit card account balance represents debt outstanding, not available funds
 - BR-AC-02: Net worth = SUM(asset account balances) - SUM(credit card balances)
@@ -141,9 +146,10 @@ Full schema: specs/technical/data-model.md
 
 ### Workspace
 - BR-WS-01: All financial entities belong to exactly one Workspace via workspace_id
-- BR-WS-02: A default Workspace (id: 1, name: "default") is created on first launch. It is not visible in the UI in Phase 1.
+- BR-WS-02: The default Workspace is identified by being the first Workspace created on first launch in Phase 1, not by a hardcoded id.
 - BR-WS-03: A Workspace cannot be deleted if it is the last remaining Workspace. At least one Workspace must always exist to ensure all financial data has a valid owner.
 - BR-WS-04: The default Workspace (id: 1) cannot be deleted under any circumstances.
+- BR-WS-05: A Workspace must always have exactly one active OWNER; ownership transfer is allowed but the OWNER role cannot be left vacant
 
 ### Currency
 - BR-CU-01: Workspace base_currency defaults to USD in Phase 1. A currency picker is introduced in the onboarding flow in Phase 2 when multi-user and international support is added. base_currency is detected from device locale in Phase 2+.
