@@ -36,7 +36,7 @@ These principles are enforced at the database layer across all platforms and pha
 | Workspace isolation | All direct financial entities carry a `workspace_id` FK from Phase 1 for query performance and security boundary enforcement. (BR-WS-01) |
 | Currency codes | ISO 4217 three-letter codes used throughout (e.g. `USD`, `EUR`, `MXN`). |
 | Primary keys | All entities use UUID v4 (TEXT) as primary key, generated client-side at creation time. Ensures global uniqueness across devices without server coordination. Supports offline-first sync introduced in Phase 2. SQLite stores UUIDs as TEXT. |
-| Sync | All entities include `last_synced_at` (nullable INTEGER timestamp), present from Phase 1 to avoid future migrations. Unused until Phase 2. |
+| Sync | All entities include `last_synced_at` (nullable INTEGER timestamp) and `sync_status` (nullable ENUM: PENDING, SYNCED, FAILED, CONFLICT), present from Phase 1 to avoid future migrations. Unused until Phase 2. |
 
 ---
 
@@ -57,6 +57,7 @@ Top-level container for all financial data. A default Workspace is created on fi
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `name` must be non-empty
@@ -85,6 +86,7 @@ A financial source belonging to a Workspace (e.g. Checking, Savings, Credit Card
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `type` must be one of the defined ENUM values
@@ -114,6 +116,7 @@ A user-defined label for grouping transactions. System-seeded defaults are provi
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - Cannot be soft-deleted if it has associated transactions. User must reassign transactions first. (BR-CA-01)
@@ -138,6 +141,7 @@ A user-defined entity representing a seller or service provider. Linked optional
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - Can be soft-deleted regardless of associated transactions. Existing transactions retain the merchant reference, but the merchant is hidden from selection. (BR-ME-01)
@@ -168,6 +172,7 @@ A single income or expense entry. Always belongs to one Account and one Category
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `type` must be one of the defined ENUM values
@@ -197,6 +202,7 @@ A movement of money between two accounts. Not counted as income or expense. Both
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `from_account_id` and `to_account_id` must both be present and must be different accounts (BR-TR-01)
@@ -226,6 +232,7 @@ An optional monthly spending plan for a Category. Non-blocking — transactions 
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - One budget per category per month per workspace. Unique on `(workspace_id, category_id, period_year, period_month)` where `deleted_at IS NULL`
@@ -258,6 +265,7 @@ A specific, actionable financial target (e.g. Emergency Fund, Trip to Hawaii).
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `target_amount` must be a positive integer (> 0)
@@ -285,6 +293,7 @@ A manual payment toward a Goal. Tracked independently from monthly category budg
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - `amount` must be a positive integer (> 0)
@@ -314,6 +323,7 @@ Represents an authenticated user. Introduced when Supabase Auth is added. In Pha
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 ---
 
@@ -333,6 +343,7 @@ Junction entity linking a User to a Workspace with an assigned role. Manages mul
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete; used to revoke access without destroying the record. |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 **Constraints:**
 - Unique on `(workspace_id, user_id)` where `deleted_at IS NULL`
@@ -365,6 +376,7 @@ A template that generates scheduled Transaction entries automatically. Transacti
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. (Phase 2) |
+| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
 
 ---
 
@@ -419,3 +431,4 @@ Indexes are listed per entity for fields that appear frequently in queries, filt
 | 0.1.0 | 2026-05-08 | Danielle Mariani | Initial entity draft |
 | 0.2.0 | 2026-05-08 | Danielle Mariani | Add workspace_id to GoalContribution. Add last_synced_at to all entities. |
 | 0.3.0 | 2026-05-11 | Danielle Mariani | Switch all primary keys and foreign keys to UUID v4 (TEXT). Default Workspace now uses a generated UUID instead of a hardcoded id. Tighten Design Principles wording for Sync and Primary keys. |
+| 0.4.0 | 2026-05-11 | Danielle Mariani | Add sync_status to all entities |
