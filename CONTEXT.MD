@@ -4,16 +4,16 @@
 Paste this file at the start of any new Claude or Cursor session to restore project context. Update after each significant session.
 
 ## Last Updated
-2026-05-08
+2026-05-12
 
 ## Current Status
 - PRODUCT.md — complete v1.0.0
-- SPEC.md — complete v1.0.0
+- SPEC.md — complete v1.0.1
 - ARCHITECTURE.md — complete v1.0.1
 - ROADMAP.md — complete v1.0.0
-- specs/technical/data-model.md — next to write
-- specs/technical/api-contract.md — not started
-- specs/technical/offline-sync.md — not started
+- specs/technical/data-model.md — complete v0.5.0
+- specs/technical/offline-sync.md — next to write
+- specs/technical/api-contract.md — not started (depends on offline-sync.md)
 - Feature specs — not started
 
 ## Key Technical Decisions Made
@@ -185,10 +185,12 @@ web/src/
 
 ### Workspace Strategy
 - Workspace is the top-level data owner (not User)
-- Default Workspace (id: 1, name: "default") seeded on first launch, transparent in Phase 1
-- workspace_id FK on all entities from Phase 1 — no migration needed later
+- Default Workspace is created on first launch with a newly generated UUID — no hardcoded id
+- The default Workspace is identified by being the first Workspace created, not by its id value
+- workspace_id FK on all direct financial entities from Phase 1 — no migration needed later
+- GoalContribution carries workspace_id for query performance consistency, even though it is reachable via Goal
 - Multi-workspace UI introduced in Phase 4
-- BR-WS-01 through BR-WS-04 define workspace rules
+- BR-WS-01 through BR-WS-05 define workspace rules
 
 ### Currency Strategy
 - Level 1 multi-currency only (no exchange rate conversion)
@@ -199,33 +201,49 @@ web/src/
 - Aggregated totals group by currency in Phase 1, no conversion
 
 ### Data Model Principles
+- All primary keys are UUID v4 (TEXT), generated client-side at creation time
+- UUID v4 chosen over ULID — ordering handled via created_at, no extra dependency needed
+- All foreign keys are TEXT to match UUID primary keys
 - All amounts stored as integers in cents (never floats)
-- All dates stored in UTC, displayed in device local time
+- All dates stored as Unix timestamps (INTEGER) in UTC, displayed in device local time
 - Soft delete on all entities (deleted_at timestamp)
 - created_at and updated_at on all entities
 - Transfers are immutable once created
 - Transfers between different currency accounts not supported in Phase 1
+- Derived values are never persisted: Account current balance, Goal progress, Budget spent amount, Spending variance, Net worth — all calculated at query time
+- Unique constraint on (workspace_id, name) where deleted_at IS NULL for Account, Category, and Merchant
 
 ### Sync Strategy
-**Sync triggers:**
+- All entities carry last_synced_at (nullable INTEGER) and sync_status (nullable TEXT ENUM) from Phase 1 to avoid future migrations
+- Both fields are null in Phase 1, active in Phase 2
+- In Phase 2, default value for sync_status on new records is PENDING
+- sync_status ENUM values: PENDING, SYNCED, FAILED, CONFLICT
+- CONFLICT state requires explicit user resolution in the UI (Phase 2)
+- FAILED records retried with exponential backoff (Phase 2)
+
+**Sync triggers (Phase 2):**
 - App foreground (connectivity check on resume)
 - Manual pull-to-refresh
-- Periodic background sync via WorkManager (Phase 2)
+- Periodic background sync via WorkManager
 
-**Conflict resolution:**
+**Conflict resolution (Phase 2):**
 - Server is the authoritative source for conflict resolution
 - Soft-deleted records are synced so deletions propagate across devices
 
-**Failure handling:**
-- Retry with exponential backoff
-- Sync status tracked per entity via last_synced_at timestamp
-- Foreground and manual sync failures surface a visible error state to the user
-
-**Watermark approach:**
+**Watermark approach (Phase 2):**
 - Client tracks last_synced_at per entity
 - Records where updated_at > last_synced_at have pending local changes
 - Server returns all records modified after the client's last_synced_at watermark
-- last_synced_at is stored on every entity in the local database (Phase 2 field)
+
+### Budget Philosophy
+- Budgets are optional spending plans, not hard caps
+- Transactions are never blocked by budget status
+- Overspending is allowed and visible
+- UI language: Planned / Spent / Remaining (not "Envelope")
+- Spending Status = Budget - Spent (positive = underspent, negative = overspent)
+- carry_forward flag (default: 1) on Budget causes the app to auto-generate next month's budget row on first access of a new period
+- Auto-generated budget rows are independent — editing or deleting one does not affect other months
+- If a month is skipped, all missing months are generated in sequence up to the current period
 
 ### Auth Flow (Phase 2+)
 ```
@@ -243,13 +261,6 @@ Note: The same JWT pattern applies in Phase 3.
 | Web      | Vitest                   | TanStack Query mock handlers       | Deferred |
 
 Test coverage targets and CI configuration defined at Phase 2 kickoff.
-
-### Budget Philosophy
-- Budgets are optional spending plans, not hard caps
-- Transactions are never blocked by budget status
-- Overspending is allowed and visible
-- UI language: Planned / Spent / Remaining (not "Envelope")
-- Spending Status = Budget - Spent (positive = underspent, negative = overspent)
 
 ### Naming Conventions
 - Business rules: BR-[SECTION]-[NUMBER] in SPEC.md
@@ -276,6 +287,7 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - Backend hosting: Render or Railway — decision at Phase 2 kickoff
 - Web hosting: Vercel is strong candidate — decision at Phase 3 kickoff
 - Remote Config: custom Supabase config table vs third-party (e.g. Firebase Remote Config) — decision TBD post Phase 4
+- Local database sync scope: Phase 1 and 2 use full local mirroring of all user data. For long-term scaling, consider windowed sync (e.g. last 12 months on device, older data fetched on demand) to reduce initial sync time and device storage on new installs. Revisit at Phase 2 kickoff based on data volume projections and target device specs.
 
 ## Open Questions (from PRODUCT.md)
 - Free, freemium, paid, or ad-supported for public launch?
@@ -339,8 +351,8 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - [ ] Multi-workspace UI
 
 ## Next Session
-- Write specs/technical/data-model.md
-- Full database schema for all Phase 1 entities
-- Reference SPEC.md Data Model Summary and Global Business Rules as the source of truth
-- Entities to cover: Workspace, Account, Category, Transaction, Budget, Merchant, Transfer, Goal, GoalContribution
-- Phase 2 entities to stub: User, RecurringTransaction
+- Write specs/technical/offline-sync.md
+- Cover: sync triggers, conflict resolution strategy, watermark approach, failure handling, CONFLICT state user resolution flow
+- Reference data-model.md v0.5.0 for last_synced_at and sync_status field definitions
+- Reference ARCHITECTURE.md sync strategy section as starting point
+- api-contract.md to follow after offline-sync.md is complete — sync endpoints depend on sync strategy decisions
