@@ -419,6 +419,7 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - Use Render or Railway to host the backend
 - Use a database table for Configurations/Feature Flagging or identify a third-party solution to manage Remote Config (e.g. Firebase Remote Config)
 - Determine hosting platform for the Web solution. Vercel is a strong candidate.
+- Local database sync scope — Phase 1 and 2 use full local mirroring of all user data (offline-first, Room as single source of truth). For long-term scaling, consider windowed sync (e.g. last 12 months on device, older data fetched on demand) to reduce initial sync time and device storage on new installs. Revisit at Phase 2 kickoff based on data volume projections and target device specs.
 
 ## Related Documents
 
