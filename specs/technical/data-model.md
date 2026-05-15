@@ -1,10 +1,10 @@
 # Data Model — Budget App
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-30
-**Last Updated:** 2026-05-11
+**Last Updated:** 2026-05-12
 
 ## Overview
 
@@ -37,7 +37,7 @@ These principles are enforced at the database layer across all platforms and pha
 | Currency codes | ISO 4217 three-letter codes used throughout (e.g. `USD`, `EUR`, `MXN`). |
 | Primary keys | All entities use UUID v4 (TEXT) as primary key, generated client-side at creation time. Ensures global uniqueness across devices without server coordination. Supports offline-first sync introduced in Phase 2. SQLite stores UUIDs as TEXT. |
 | Sync | All entities include `last_synced_at` (nullable INTEGER timestamp) and `sync_status` (nullable ENUM: PENDING, SYNCED, FAILED, CONFLICT), present from Phase 1 to avoid future migrations. Unused until Phase 2. |
-
+| Derived Values | The following fields are calculated (not persisted): Account current balance, Goal progress, Budget spent amount, Spending variance, and Net worth |
 ---
 
 ## Entity Reference
@@ -95,6 +95,7 @@ A financial source belonging to a Workspace (e.g. Checking, Savings, Credit Card
 - `credit_limit` must be a positive integer when set (> 0)
 - Cannot be soft-deleted if it has associated transactions or transfers. User must reassign first. (BR-AC-03)
 - Credit card balance represents debt outstanding, not available funds. (BR-AC-01)
+- Unique on `(workspace_id, name)` where deleted_at IS NULL
 
 ---
 
@@ -122,6 +123,7 @@ A user-defined label for grouping transactions. System-seeded defaults are provi
 - Cannot be soft-deleted if it has associated transactions. User must reassign transactions first. (BR-CA-01)
 - Default categories (`is_default = 1`) cannot be soft-deleted, only hidden. (BR-CA-02)
 - `name` must be non-empty
+- Unique on `(workspace_id, name)` where deleted_at IS NULL
 
 ---
 
@@ -146,6 +148,7 @@ A user-defined entity representing a seller or service provider. Linked optional
 **Constraints:**
 - Can be soft-deleted regardless of associated transactions. Existing transactions retain the merchant reference, but the merchant is hidden from selection. (BR-ME-01)
 - `name` must be non-empty
+- Unique on `(workspace_id, name)` where deleted_at IS NULL
 
 ---
 
@@ -323,7 +326,7 @@ Represents an authenticated user. Introduced when Supabase Auth is added. In Pha
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. (Phase 2) |
-| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | PENDING | ENUM: PENDING, SYNCED, FAILED, CONFLICT. |
 
 ---
 
@@ -343,7 +346,7 @@ Junction entity linking a User to a Workspace with an assigned role. Manages mul
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete; used to revoke access without destroying the record. |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. (Phase 2) |
-| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | PENDING | ENUM: PENDING, SYNCED, FAILED, CONFLICT. |
 
 **Constraints:**
 - Unique on `(workspace_id, user_id)` where `deleted_at IS NULL`
@@ -376,7 +379,7 @@ A template that generates scheduled Transaction entries automatically. Transacti
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
 | last_synced_at | INTEGER | Yes | null | Unix timestamp, UTC. Tracks last successful sync with backend. (Phase 2) |
-| sync_status | TEXT | Yes | null | ENUM: PENDING, SYNCED, FAILED, CONFLICT. Null in Phase 1. (Phase 2) |
+| sync_status | TEXT | Yes | PENDING | ENUM: PENDING, SYNCED, FAILED, CONFLICT. |
 
 ---
 
@@ -432,3 +435,4 @@ Indexes are listed per entity for fields that appear frequently in queries, filt
 | 0.2.0 | 2026-05-08 | Danielle Mariani | Add workspace_id to GoalContribution. Add last_synced_at to all entities. |
 | 0.3.0 | 2026-05-11 | Danielle Mariani | Switch all primary keys and foreign keys to UUID v4 (TEXT). Default Workspace now uses a generated UUID instead of a hardcoded id. Tighten Design Principles wording for Sync and Primary keys. |
 | 0.4.0 | 2026-05-11 | Danielle Mariani | Add sync_status to all entities |
+| 0.5.0 | 2026-05-11 | Danielle Mariani | Add workspace_id and name constraints to Account, Category and Merchant. Add Derived Values to Design Principles. |
