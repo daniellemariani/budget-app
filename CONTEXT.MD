@@ -4,7 +4,7 @@
 Paste this file at the start of any new Claude or Cursor session to restore project context. Update after each significant session.
 
 ## Last Updated
-2026-05-12
+2026-05-18
 
 ## Current Status
 - PRODUCT.md — complete v1.0.0
@@ -12,8 +12,8 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 - ARCHITECTURE.md — complete v1.0.1
 - ROADMAP.md — complete v1.0.0
 - specs/technical/data-model.md — complete v0.5.0
-- specs/technical/offline-sync.md — next to write
-- specs/technical/api-contract.md — not started (depends on offline-sync.md)
+- specs/technical/offline-sync.md — complete v0.3.0
+- specs/technical/api-contract.md — next to write (depends on offline-sync.md v0.3.0)
 - Feature specs — not started
 
 ## Key Technical Decisions Made
@@ -214,26 +214,75 @@ web/src/
 - Unique constraint on (workspace_id, name) where deleted_at IS NULL for Account, Category, and Merchant
 
 ### Sync Strategy
+Full strategy defined in specs/technical/offline-sync.md v0.3.0. Key decisions:
+
 - All entities carry last_synced_at (nullable INTEGER) and sync_status (nullable TEXT ENUM) from Phase 1 to avoid future migrations
 - Both fields are null in Phase 1, active in Phase 2
 - In Phase 2, default value for sync_status on new records is PENDING
 - sync_status ENUM values: PENDING, SYNCED, FAILED, CONFLICT
+- Phase 1 records with sync_status IS NULL are treated as PENDING on first Phase 2 sync
 - CONFLICT state requires explicit user resolution in the UI (Phase 2)
 - FAILED records retried with exponential backoff (Phase 2)
 
+**updated_at is client-authoritative:**
+- updated_at represents when the user made the change (device clock, UTC)
+- The server stores client-provided updated_at as-is on push — never overwrites it
+- Conflict detection compares client updated_at values on both sides (same scale)
+- Device clock skew is a known limitation, not corrected in Phase 2
+- server_received_at is a backend-only field (not synced to clients) for audit, telemetry, and debugging
+
+**Semantic equality check (pull flow):**
+- Before flagging a conflict on a PENDING/FAILED/NULL record, business fields are compared
+- Business fields = all fields except id, sync_status, last_synced_at, updated_at, deleted_at
+- If all business fields are identical: mark SYNCED, reconcile timestamps to server values — no conflict surfaced
+- If any business field differs: mark CONFLICT, surface to user
+
+**Sync concurrency:**
+- Exactly one sync cycle must be active at any given time per workspace
+- Enforced via a Kotlin Mutex in the SyncOrchestrator, released via finally on completion, failure, or cancellation
+- WorkManager uses ExistingPeriodicWorkPolicy.KEEP to prevent duplicate workers
+- Background and connectivity-restoration triggers are dropped if a sync is already in flight
+- Manual user refresh is queued as a single boolean follow-up flag if a sync is in flight
+
+**Cancellation safety:**
+- Sync writes to Room record-by-record — partial progress is always preserved on interruption
+- Watermark only advances on full successful completion of a pull cycle
+- Safe across graceful app close, process kill (OOM/force-stop), and WorkManager worker cancellation
+- On next launch or trigger, sync resumes cleanly from the last valid watermark
+
 **Sync triggers (Phase 2):**
-- App foreground (connectivity check on resume)
-- Manual pull-to-refresh
-- Periodic background sync via WorkManager
+- App foreground via DefaultLifecycleObserver.onStart()
+- Manual pull-to-refresh (queued as follow-up if sync in flight)
+- Periodic background sync via WorkManager (every 15–30 min, CONNECTED constraint)
+- Connectivity restoration via ConnectivityManager.NetworkCallback
 
-**Conflict resolution (Phase 2):**
+**Conflict resolution:**
 - Server is the authoritative source for conflict resolution
+- Last-write-wins (server) applied silently when local sync_status = SYNCED
+- Explicit user resolution required when local record is PENDING/FAILED/NULL and business fields differ
+- User chooses: keep local (re-queued as PENDING with force: true) or accept server (marked SYNCED)
 - Soft-deleted records are synced so deletions propagate across devices
+- Deleted vs updated conflicts surface to user with restore or confirm deletion choice
 
-**Watermark approach (Phase 2):**
-- Client tracks last_synced_at per entity
-- Records where updated_at > last_synced_at have pending local changes
-- Server returns all records modified after the client's last_synced_at watermark
+**Watermark approach:**
+- Single watermark per workspace (not per entity), stored in SyncMetadata table keyed by workspace_id
+- Client sends watermark as since query parameter on pull
+- Server returns records where updated_at > since, including soft-deleted records
+- Cursor-based pagination on pull (stable under concurrent inserts); offset pagination avoided
+- Watermark only advanced after all pages of a pull cycle are successfully applied
+- First full sync (no watermark): server returns all records for the workspace
+
+**Batch processing:**
+- Push: 100 records per request (default), split into sequential batches if exceeded
+- Pull: 500 records per page (default)
+- Batch processing is record-level, not batch-level — a failure on one record does not affect others
+- No business sort order applied to sync payloads; dependency order only
+- Push dependency order: Workspace → Account → Category → Merchant → Goal → Transaction → Transfer → Budget → GoalContribution → RecurringTransaction
+
+**SyncOrchestrator open question:**
+- Per-entity sync status vs single workspace-level sync state — not yet decided
+- Pragmatic middle ground: workspace-level status in UI, per-entity detail in a sync log or debug screen
+- Decision deferred to Phase 2 feature spec (specs/features/sync/spec.md)
 
 ### Budget Philosophy
 - Budgets are optional spending plans, not hard caps
@@ -288,6 +337,11 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - Web hosting: Vercel is strong candidate — decision at Phase 3 kickoff
 - Remote Config: custom Supabase config table vs third-party (e.g. Firebase Remote Config) — decision TBD post Phase 4
 - Local database sync scope: Phase 1 and 2 use full local mirroring of all user data. For long-term scaling, consider windowed sync (e.g. last 12 months on device, older data fetched on demand) to reduce initial sync time and device storage on new installs. Revisit at Phase 2 kickoff based on data volume projections and target device specs.
+- Pull page size: configurable from start vs hardcoded in Phase 2 — decision at Phase 2 kickoff
+- Permanently failed records (after max retries): require manual user action to reset, or auto-reset on app restart — decision at Phase 2 kickoff
+- Soft-delete purge retention threshold — define at Phase 2 kickoff (Permanent Cleanup Policy)
+- SyncOrchestrator granularity: workspace-level vs per-entity sync status — decision at Phase 2 feature spec (specs/features/sync/spec.md)
+- Conflict resolution UI: inline on record detail screen vs dedicated conflict queue screen — decision at Phase 2 feature spec (specs/features/sync/spec.md)
 
 ## Open Questions (from PRODUCT.md)
 - Free, freemium, paid, or ad-supported for public launch?
@@ -351,8 +405,11 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - [ ] Multi-workspace UI
 
 ## Next Session
-- Write specs/technical/offline-sync.md
-- Cover: sync triggers, conflict resolution strategy, watermark approach, failure handling, CONFLICT state user resolution flow
-- Reference data-model.md v0.5.0 for last_synced_at and sync_status field definitions
-- Reference ARCHITECTURE.md sync strategy section as starting point
-- api-contract.md to follow after offline-sync.md is complete — sync endpoints depend on sync strategy decisions
+- Write specs/technical/api-contract.md
+- Primary references: offline-sync.md v0.3.0 (sync endpoints), data-model.md v0.5.0 (entity schema), ARCHITECTURE.md (API design conventions)
+- API design conventions to follow: RESTful JSON, versioned under /api/v1/, lowercase hyphenated endpoint names, workspace_id scoped, pagination/filtering/sorting defined per feature
+- Sync endpoints needed: POST /api/v1/sync/push, GET /api/v1/sync/pull (cursor-based pagination, since watermark parameter)
+- Push endpoint: per-record upsert on id, per-record results (success/conflict/error), force flag for conflict override, server stores client updated_at as-is
+- Pull endpoint: returns records where updated_at > since, includes soft-deleted records, dependency order, cursor-based pagination
+- Auth endpoints: under /api/v1/auth/ — scope to be defined in auth feature spec, but API contract should stub them
+- All other feature endpoints (accounts, categories, transactions, etc.) to be defined per feature
