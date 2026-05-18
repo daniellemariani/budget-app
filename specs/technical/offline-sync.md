@@ -1,10 +1,10 @@
 # Offline Sync Strategy — Budget App
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-15
-**Last Updated:** 2026-05-17
+**Last Updated:** 2026-05-18
 
 ---
 
@@ -23,7 +23,8 @@ The sync strategy is designed to support an offline-first experience where the d
 - Pull server-side changes incrementally using a watermark approach, avoiding full re-downloads on every sync.
 - Detect and surface conflicts to the user when the same record has diverged on both client and server, while avoiding false conflicts caused by semantically identical records.
 - Ensure all sync operations are idempotent — retrying a failed sync produces no duplicate or corrupted data.
-- Ensure only one sync cycle runs at a time — concurrent sync operations are not permitted.
+- Ensure exactly one sync cycle is active at any given time — concurrent sync operations are not permitted.
+- Guarantee safe recovery from mid-sync interruptions (app close, process kill, worker cancellation) with no data loss or corruption.
 - Avoid blocking the UI at any point during sync; sync runs asynchronously and status is communicated passively.
 
 ---
@@ -81,7 +82,11 @@ All sync operations must be safe to retry. Sending the same record multiple time
 
 ### Single Sync at a Time
 
-Only one sync cycle must run at a time per workspace. Concurrent sync operations are not permitted. This is enforced via a `Mutex` in the `SyncOrchestrator` (see Sync Concurrency Policy).
+Exactly one sync cycle must be active at any given time per workspace. Concurrent sync operations are not permitted. This is enforced via a `Mutex` in the `SyncOrchestrator` (see Sync Concurrency Policy).
+
+### Interruption Safety
+
+Sync must be safe to interrupt at any point — whether by app close, process kill, or worker cancellation. Partial progress is preserved at the record level. The watermark is only advanced on full successful completion, so interrupted pulls are always retried in full on the next trigger (see Cancellation Behavior).
 
 ---
 
@@ -143,6 +148,21 @@ This prevents false conflicts caused by the same change being made independently
 2. Any foreground sync status indicator (e.g. last synced timestamp, spinner) is updated via StateFlow to the UI.
 3. If any records remain in `FAILED` or `CONFLICT` state, the UI surfaces this passively (e.g. a sync warning icon). It does not block the user.
 
+### Cancellation Behavior
+
+Sync must be safe to interrupt at any point without data loss or corruption. The following scenarios are handled explicitly:
+
+**App closed gracefully while a foreground sync is running:**
+The coroutine running the `SyncOrchestrator` is cancelled via structured concurrency when the lifecycle scope is destroyed. Because sync writes to Room record-by-record (not as a single atomic transaction), all records successfully written before cancellation retain their updated `sync_status`. Records not yet processed remain `PENDING` or `FAILED`. The `Mutex` is released via a `finally` block. The watermark is only advanced at the end of a complete, successful pull cycle — an interrupted pull does not advance the watermark. On next launch, the sync resumes cleanly from the last valid watermark.
+
+**Process killed (OOM, user force-stop):**
+The `Mutex` is in-memory and is gone with the process — this is safe because no sync is in flight by definition on next launch. Room's write-ahead logging (WAL) ensures all committed record-level writes survive the kill. The outcome is identical to graceful cancellation: partial progress is preserved, incomplete work is picked up on the next sync trigger.
+
+**WorkManager worker cancelled mid-sync:**
+WorkManager may cancel a `SyncWorker` if its constraints are no longer met (e.g. network drops mid-sync). Cancellation is cooperative via Kotlin coroutine cancellation. Record-level partial progress is preserved. WorkManager reschedules the worker when constraints are satisfied again, and the `SyncOrchestrator` resumes from the last valid watermark.
+
+**Key safety invariant across all three scenarios:** the watermark only advances on full successful completion of a pull cycle. An interrupted sync always retries the full pull from the last valid watermark on the next trigger. No data is lost; no records are silently skipped.
+
 ---
 
 ## Sync Triggers
@@ -176,11 +196,11 @@ Implementation: A `ConnectivityManager.NetworkCallback` registered in the app mo
 
 ## Sync Concurrency Policy
 
-Only one sync cycle may run at a time per workspace. Without this constraint, concurrent syncs could query the same `PENDING` records simultaneously, produce duplicate push payloads, and race to update `sync_status`, leading to corrupted sync state.
+Exactly one sync cycle must be active at any given time per workspace. Without this constraint, concurrent syncs could query the same `PENDING` records simultaneously, produce duplicate push payloads, and race to update `sync_status`, leading to corrupted sync state.
 
 ### Enforcement Mechanism
 
-The `SyncOrchestrator` holds a Kotlin `Mutex`. Any sync operation — regardless of trigger source — must acquire the `Mutex` before starting and release it on completion or failure.
+The `SyncOrchestrator` holds a Kotlin `Mutex`. Any sync operation — regardless of trigger source — must acquire the `Mutex` before starting and release it on completion, failure, or cancellation via a `finally` block.
 
 ### Behavior per Trigger
 
@@ -210,11 +230,11 @@ Tracks the current sync state of each individual record. A nullable TEXT field s
 
 ### updated_at
 
-A non-nullable INTEGER (Unix timestamp, UTC) recording the last time this record was modified locally. Set on every create or update operation by the device clock. This value is stored as-is by the server — the server does not overwrite client-provided `updated_at` values. It represents the time the user made the change, not the time the server received it.
+A non-nullable INTEGER (Unix timestamp, UTC) recording the last time this record was modified. Set by the device clock on every local create or update. This value is stored as-is by the server on push — the server never overwrites it with its own clock. It represents when the user made the change, not when the server received it.
 
-Conflict detection compares the incoming `updated_at` from the client against the server's stored `updated_at` for the same record. Because both values originate from device clocks, they are on the same scale.
+Conflict detection compares the incoming client `updated_at` against the server's stored `updated_at` for the same record. Because both values are client-originated, they are on the same scale.
 
-**Known limitation:** Phase 2 does not validate or correct device clock skew. A device with a significantly incorrect clock may produce unreliable `updated_at` values, which could affect conflict detection. This is accepted as a known limitation and revisited post-Phase 2 if it becomes a real problem in practice.
+**Known limitation:** Phase 2 does not validate or correct device clock skew. A device with a significantly incorrect clock may produce unreliable `updated_at` values, which could affect conflict detection. This is accepted as a known limitation and revisited post-Phase 2 if it proves to be a real problem in practice.
 
 ### last_synced_at
 
@@ -301,7 +321,7 @@ PENDING / FAILED / NULL + pull arrives, business fields identical
 
 ### Client Watermark
 
-The watermark is the timestamp representing the last point in time at which the client successfully pulled data from the server. It is stored locally as a single value per workspace (not per entity) and is advanced after each successful pull.
+The watermark is the timestamp representing the last point in time at which the client successfully pulled data from the server. It is stored locally as a single value per workspace (not per entity) and is advanced after each successful, complete pull cycle.
 
 Storage: a dedicated `SyncMetadata` table or shared preferences key, keyed by `workspace_id`.
 
@@ -517,19 +537,19 @@ Each feature's `RepositoryImpl` is responsible for writing `sync_status = PENDIN
 
 A dedicated `SyncOrchestrator` class coordinates the full push + pull cycle. It is injected via Hilt and called from WorkManager workers and lifecycle observers. It is responsible for:
 
-- Acquiring and releasing the sync `Mutex` to enforce single-sync-at-a-time.
+- Acquiring and releasing the sync `Mutex` (via `finally`) to enforce single-sync-at-a-time and safe cancellation.
 - Querying `PENDING`, `FAILED`, and `NULL` sync_status records from Room.
 - Performing the semantic equality check during pull application.
 - Calling the push and pull remote data sources.
 - Applying pull results to Room via local data sources.
 - Updating `sync_status` and `last_synced_at` per record.
-- Advancing the watermark after a successful pull.
+- Advancing the watermark only after a complete, successful pull cycle.
 - Managing the manual sync follow-up flag.
 - Exposing a `StateFlow<SyncState>` for the UI to observe.
 
 ### WorkManager
 
-WorkManager manages periodic and connectivity-triggered background sync. A `SyncWorker` class implements `CoroutineWorker` and delegates to the `SyncOrchestrator`. WorkManager uses `ExistingPeriodicWorkPolicy.KEEP` to prevent duplicate workers. The `SyncOrchestrator` `Mutex` provides a second layer of protection at runtime.
+WorkManager manages periodic and connectivity-triggered background sync. A `SyncWorker` class implements `CoroutineWorker` and delegates to the `SyncOrchestrator`. WorkManager uses `ExistingPeriodicWorkPolicy.KEEP` to prevent duplicate workers. The `SyncOrchestrator` `Mutex` provides a second layer of protection at runtime. WorkManager cancellation is handled cooperatively via Kotlin coroutine cancellation — partial record-level progress is preserved on cancellation.
 
 ### Connectivity Monitoring
 
@@ -549,7 +569,13 @@ The backend validates all incoming records against the schema defined in `specs/
 
 ### Server Timestamps
 
-The server stores the client-provided `updated_at` value as-is. It does not overwrite it with the server's own clock. This preserves the user's mutation time and ensures conflict detection compares values on the same scale (both client-originated). If the server needs to track receipt time for audit purposes, it may store a separate `server_received_at` field, but this does not replace `updated_at`.
+The server stores the client-provided `updated_at` value as-is on every push. It does not overwrite it with the server's own clock. This preserves the user's mutation time and ensures conflict detection compares values on the same scale — both client-originated.
+
+In addition to `updated_at`, the server records a `server_received_at` timestamp on every incoming record. This is a backend-only field — it is not synced to clients and has no equivalent in the Room schema. Its purpose is operational:
+
+- **Debugging**: when a conflict is reported and client `updated_at` values look suspicious (e.g. device clock was wrong), `server_received_at` provides the ground truth of when the record actually arrived.
+- **Telemetry**: sync latency can be derived as `server_received_at - updated_at` per record, giving visibility into real-world sync lag.
+- **Audit**: for financial data, knowing when a record was received by the server — independent of when it was created on-device — has compliance value as the app scales toward multi-user use.
 
 ### Multi-Workspace Isolation
 
@@ -623,3 +649,4 @@ Financial data (transactions, balances, budgets) is never logged in plain text o
 |---|---|---|---|
 | 0.1.0 | 2026-05-15 | Danielle Mariani | Initial draft |
 | 0.2.0 | 2026-05-17 | Danielle Mariani | Add NULL sync_status handling for Phase 1 records. Add semantic equality check to Pull Flow and Conflict Resolution. Clarify record-level batch isolation in Push Flow, Batch Processing, and Partial Sync Failures. Clarify updated_at as client-originated; server does not overwrite. Add device clock skew as known limitation. Add Sync Concurrency Policy section. Clarify payload sort order. Update SyncOrchestrator open question with pragmatic middle-ground option. Expand FCM description in Future Enhancements. |
+| 0.3.0 | 2026-05-18 | Danielle Mariani | Add Cancellation Behavior subsection covering graceful close, process kill, and WorkManager cancellation. Add Interruption Safety core principle. Add server_received_at to Backend Responsibilities with audit, telemetry, and debugging rationale. Simplify updated_at rule to client-authoritative only. Fix Single Sync at a Time wording from "may" to "must". Update Goals and Android Client Responsibilities to reflect cancellation safety. |
