@@ -1,10 +1,10 @@
 # Data Model — Budget App
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-30
-**Last Updated:** 2026-05-12
+**Last Updated:** 2026-05-23
 
 ## Overview
 
@@ -332,16 +332,21 @@ Represents an authenticated user. Introduced when Supabase Auth is added. In Pha
 
 ### WorkspaceMember *(Phase 2)*
 
-Junction entity linking a User to a Workspace with an assigned role. Manages multi-user access and permissions.
+Junction entity linking a User to a Workspace with an assigned role. Manages multi-user access and permissions, including the invite lifecycle.
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
 | id | TEXT | No | UUID v4 | Primary key. Generated client-side at creation time. |
 | workspace_id | TEXT | No | — | FK → Workspace.id |
-| user_id | TEXT | No | — | FK → User.id |
+| user_id | TEXT | Yes | null | FK → User.id. Null for PENDING members — populated when the invite is accepted. |
 | role | TEXT | No | — | ENUM: `OWNER`, `ADMIN`, `MEMBER`, `VIEWER` |
+| status | TEXT | No | `PENDING` | ENUM: `PENDING`, `ACTIVE`, `REVOKED`. PENDING = invite sent, not yet accepted. ACTIVE = member has joined. REVOKED = access removed. |
+| display_name | TEXT | Yes | null | Denormalized from User.display_name for query convenience. Null for PENDING members (no User record yet). Kept in sync when the User updates their profile. |
+| email | TEXT | Yes | null | Invite email for PENDING members (set at invite time). Updated to User.email on invite acceptance. Used to display who a pending invite was sent to. |
+| invite_token | TEXT | Yes | null | Signed backend JWT used to accept the invite. Stored for revocation support. Cleared after acceptance or expiry. Server-only — never returned in API responses or sync payloads. |
+| invite_expires_at | INTEGER | Yes | null | Unix timestamp, UTC. Expiry of the invite token (7 days from invite creation by default, configurable). Null for ACTIVE and REVOKED members. Server-only — never returned in API responses or sync payloads. |
 | invited_at | INTEGER | Yes | null | Timestamp when the invitation was sent. Unix timestamp, UTC. |
-| joined_at | INTEGER | Yes | null | Timestamp when the user accepted. Unix timestamp, UTC. |
+| joined_at | INTEGER | Yes | null | Timestamp when the user accepted the invite. Unix timestamp, UTC. |
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete; used to revoke access without destroying the record. |
@@ -349,9 +354,15 @@ Junction entity linking a User to a Workspace with an assigned role. Manages mul
 | sync_status | TEXT | Yes | PENDING | ENUM: PENDING, SYNCED, FAILED, CONFLICT. |
 
 **Constraints:**
-- Unique on `(workspace_id, user_id)` where `deleted_at IS NULL`
+- Unique on `(workspace_id, user_id)` where `deleted_at IS NULL` and `user_id IS NOT NULL`
 - Each Workspace must have exactly one active `OWNER` (BR-WS-05)
 - `role` must be one of the defined ENUM values
+- `status` must be one of the defined ENUM values
+- `user_id` is null only when `status = PENDING`. Must be non-null for `ACTIVE` and `REVOKED` records.
+- `invite_token` and `invite_expires_at` are only meaningful when `status = PENDING`. Cleared (set to null) on acceptance or revocation.
+- `invite_token` and `invite_expires_at` are server-only fields. They are stored for internal validation and revocation but are never included in API responses or sync payloads. The raw token value is never exposed to any client.
+- `display_name` is denormalized — it must be updated whenever the linked User's `display_name` changes.
+- `email` is set to the invite email at creation time. Updated to match User.email on invite acceptance.
 
 ---
 
@@ -424,6 +435,7 @@ Indexes are listed per entity for fields that appear frequently in queries, filt
 | Transfer | `(workspace_id, to_account_id)` | Account transfer history |
 | GoalContribution | `(workspace_id, goal_id)` | Progress calculation per goal |
 | WorkspaceMember | `(workspace_id, user_id)` | Member lookup and deduplication (Phase 2) |
+| WorkspaceMember | `(workspace_id, status)` | Member list queries filtered by status — PENDING invite management, ACTIVE member access checks (Phase 2) |
 
 ---
 
@@ -436,3 +448,4 @@ Indexes are listed per entity for fields that appear frequently in queries, filt
 | 0.3.0 | 2026-05-11 | Danielle Mariani | Switch all primary keys and foreign keys to UUID v4 (TEXT). Default Workspace now uses a generated UUID instead of a hardcoded id. Tighten Design Principles wording for Sync and Primary keys. |
 | 0.4.0 | 2026-05-11 | Danielle Mariani | Add sync_status to all entities |
 | 0.5.0 | 2026-05-11 | Danielle Mariani | Add workspace_id and name constraints to Account, Category and Merchant. Add Derived Values to Design Principles. |
+| 0.6.0 | 2026-05-23 | Danielle Mariani | Expand WorkspaceMember stub with five new fields: status (PENDING/ACTIVE/REVOKED), display_name (denormalized from User), email (invite email → account email), invite_token (server-only, stored for revocation), invite_expires_at (server-only, 7-day TTL). Make user_id nullable for PENDING members. Update WorkspaceMember constraints. Add WorkspaceMember(workspace_id, status) index. |
