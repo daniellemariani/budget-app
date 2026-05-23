@@ -1,10 +1,10 @@
 # Budget App
 
-**Version:** 1.0.1
+**Version:** 1.0.2
 **Status:** In Progress
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-21
-**Last Updated:** 2026-05-11
+**Last Updated:** 2026-05-23
 
 ## Overview
 Budget App is a personal finance management tool that allows users to track expenses, manage monthly budgets per category, and visualize spending patterns. Built offline-first for Android, with a web dashboard and backend sync in later phases.
@@ -29,7 +29,7 @@ Budget App is a personal finance management tool that allows users to track expe
 | BaseCurrency | The primary currency of a Workspace, set during onboarding and used as the default for all accounts and aggregated display totals. Stored as an ISO 4217 code (e.g. USD, EUR, MXN) |
 | CurrencyCode | An ISO 4217 three-letter currency identifier assigned to each Account and inherited by its Transactions. Determines how amounts are displayed and grouped in reports. (e.g. USD, EUR, MXN, GBP) |
 | ISO 4217 | International standard defining three-letter currency codes (e.g. USD for US Dollar, EUR for Euro, MXN for Mexican Peso) |
-| WorkspaceMember | A user added to a workspace with a role (OWNER, ADMIN, MEMBER, VIEWER) |
+| WorkspaceMember | A user added to a workspace with a role (OWNER, ADMIN, MEMBER, VIEWER) and a status (PENDING, ACTIVE, REVOKED). Tracks invite lifecycle and membership access. Introduced in Phase 2. |
 
 ## User Roles
 
@@ -37,13 +37,31 @@ Budget App is a personal finance management tool that allows users to track expe
 - **Owner** — single user, full access to all data, no authentication required
 
 ### Phase 2+
-- **Owner** — created the workspace, full access, 
-  manages members and billing
-- **Admin** — full access to data, can manage members
-- **Member** — full read/write access to transactions and budgets
-- **Viewer** — read-only access (future consideration)
 
-Note: Role assignment is managed through the WorkspaceMember entity in Phase 2+.
+Role assignment is managed through the `WorkspaceMember` entity. Each member has exactly one role per workspace.
+
+- **Owner** — created the workspace; full access to all data and settings; manages members and billing; the only role that can transfer ownership. A workspace must always have exactly one active Owner (BR-WS-05).
+- **Admin** — full access to all data and settings; can invite, manage, and remove members (except the Owner); cannot transfer ownership.
+- **Member** — full read/write access to transactions, transfers, budgets, goals, goal contributions, and recurring transactions; cannot manage accounts, categories, merchants, workspace settings, or other members.
+- **Viewer** — read-only access to transactions, transfers, budgets, goals, goal contributions, and workspace members; can see account names, types, and currencies but **not** balances, credit limits, or net worth; cannot write any data.
+
+**Role Permission Summary:**
+
+| Action | OWNER | ADMIN | MEMBER | VIEWER |
+|---|---|---|---|---|
+| View transactions, transfers, budgets, goals, contributions | ✓ | ✓ | ✓ | ✓ |
+| View accounts (name, type, currency only) | ✓ | ✓ | ✓ | ✓ |
+| View account balances, credit limits, net worth | ✓ | ✓ | ✓ | ✗ |
+| Create / edit / delete transactions, transfers | ✓ | ✓ | ✓ | ✗ |
+| Create / edit / delete budgets, goals, contributions | ✓ | ✓ | ✓ | ✗ |
+| Create / edit / delete recurring transactions | ✓ | ✓ | ✓ | ✗ |
+| Create / edit / delete categories, merchants | ✓ | ✓ | ✗ | ✗ |
+| Create / edit / delete accounts | ✓ | ✓ | ✗ | ✗ |
+| Edit workspace settings | ✓ | ✓ | ✗ | ✗ |
+| Invite / manage / remove members | ✓ | ✓ | ✗ | ✗ |
+| Transfer workspace ownership | ✓ | ✗ | ✗ | ✗ |
+
+Full API-level enforcement is defined in `specs/technical/api-contract.md` — Authentication & Authorization.
 
 ### Workspace model
 Each household or individual is represented as a Workspace. Users can belong to multiple workspaces (e.g. family + personal). All financial data belongs to a Workspace, not a User directly.
@@ -61,7 +79,7 @@ Each household or individual is represented as a Workspace. Users can belong to 
 | Transfers | specs/features/transfers/spec.md | Move money between accounts | Not Started |
 | Budgets | specs/features/budgets/spec.md | Monthly spending limits per category | Not Started |
 | Goals | specs/features/goals/spec.md | Savings targets with progress tracking | Not Started |
-| Dashboard | specs/features/dashboard/spec.md | Summary view of financial health | Not Started |
+| Dashboard | specs/features/dashboard/spec.md | Summary view of financial health. Displays: net worth (assets, liabilities, net); current vs previous month income and expense comparison; budget status for current period sorted by most overspent; top 5 spending categories; active goal progress; last 10 transactions. Android generates this data locally from Room. Web uses GET /api/v1/workspaces/{workspace_id}/summary. | Not Started |
 
 ### Phase 2 — Backend + Sync
 | Feature | Spec | Description | Status |
@@ -99,7 +117,7 @@ Core entities and relationships:
 - **User** — owns all data, introduced in Phase 2
 - **RecurringTransaction** — generates scheduled Transactions, linked back via recurring_id on Transaction, has amount/frequency/start date/end date (optional)/ total installments (optional)/remaining installments (optional), introduced in Phase 2
 - **Workspace** — top-level container for all financial data. A default workspace is created on first launch and used transparently in Phase 1. Has base_currency (USD by default). Multi-workspace support introduced in Phase 4.
-- **WorkspaceMember** - junction entity linking a User to a Workspace with an assigned role (OWNER, ADMIN, MEMBER, VIEWER). Introduced in Phase 2.
+- **WorkspaceMember** — junction entity linking a User to a Workspace with an assigned role (OWNER, ADMIN, MEMBER, VIEWER) and status (PENDING, ACTIVE, REVOKED). Tracks invite lifecycle (invited_at, joined_at, invite expiry). Introduced in Phase 2.
 
 Full schema: specs/technical/data-model.md
 
@@ -148,7 +166,7 @@ Note: Cashback and rewards are recorded as INCOME transactions in a user-defined
 - BR-WS-01: All financial entities belong to exactly one Workspace via workspace_id
 - BR-WS-02: The default Workspace is identified by being the first Workspace created on first launch in Phase 1, not by a hardcoded id.
 - BR-WS-03: A Workspace cannot be deleted if it is the last remaining Workspace. At least one Workspace must always exist to ensure all financial data has a valid owner.
-- BR-WS-04: The default Workspace (id: 1) cannot be deleted under any circumstances.
+- BR-WS-04: The default Workspace (the first Workspace created on first launch) cannot be deleted under any circumstances.
 - BR-WS-05: A Workspace must always have exactly one active OWNER; ownership transfer is allowed but the OWNER role cannot be left vacant
 
 ### Currency
