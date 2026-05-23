@@ -1,10 +1,10 @@
 # Offline Sync Strategy — Budget App
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-15
-**Last Updated:** 2026-05-18
+**Last Updated:** 2026-05-23
 
 ---
 
@@ -116,10 +116,10 @@ This section describes the full end-to-end journey of data, from a local write t
 1. The Sync Orchestrator queries Room for all records where `sync_status IN ('PENDING', 'FAILED') OR sync_status IS NULL`, across all entities, ordered by dependency (see Ordering Guarantees). Records with `sync_status IS NULL` are Phase 1 records being synced for the first time in Phase 2.
 2. No business-field sort order (e.g. by date) is applied to the push payload — ordering is by entity dependency only. UI sort order is a query-time concern handled by Room DAOs, not by sync.
 3. Records are batched and sent to the push endpoint (`POST /api/v1/sync/push`). Default batch size: 100 records per request.
-4. The backend processes each record independently and returns per-record results (success, conflict, error). **Batch processing is record-level, not batch-level — a failure on one record does not affect the processing of other records in the same batch.**
-5. On success: `sync_status` → `SYNCED`, `last_synced_at` → current UTC timestamp.
+4. The backend processes each record independently and returns an entity-keyed response with `accepted`, `conflicts`, and `rejected` arrays per entity type. **Batch processing is record-level, not batch-level — a failure on one record does not affect the processing of other records in the same batch.**
+5. On accepted: `sync_status` → `SYNCED`, `last_synced_at` → current UTC timestamp, `updated_at` reconciled to `server_updated_at`.
 6. On conflict: `sync_status` → `CONFLICT`. Record is not overwritten locally until the user resolves the conflict.
-7. On failure: `sync_status` → `FAILED`. Record is queued for retry.
+7. On rejected: `sync_status` → `FAILED`. Record is queued for retry.
 
 ### Pull Flow
 
@@ -219,6 +219,15 @@ A queued manual follow-up is represented as a single boolean flag — not a queu
 ## Sync Metadata
 
 These four fields are present on every entity from Phase 1. They are the foundation of the sync mechanism.
+
+### Client-Only Fields
+
+`sync_status` and `last_synced_at` are **client-only fields**. They exist in the local Room database to track the sync state of each record on the device, but they have no meaning to the server and are never transmitted in either direction:
+
+- **Push payloads** sent to `POST /api/v1/sync/push` must never include `sync_status` or `last_synced_at`. The server does not store or process these fields.
+- **Pull responses** from `GET /api/v1/sync/pull` never include `sync_status` or `last_synced_at`. The client sets these fields locally after successfully applying each received record.
+
+The client sets `sync_status = SYNCED` and updates `last_synced_at` locally as a post-processing step after a successful push or pull — not as part of the network payload. This separation is enforced in `specs/technical/api-contract.md` via the Push Record Schema and Pull Record Schema definitions.
 
 ### sync_status
 
@@ -420,17 +429,32 @@ Entities must be pushed in dependency order to avoid foreign key violations on t
 Dependency push order:
 
 1. Workspace
-2. Account
-3. Category
-4. Merchant
-5. Goal
-6. Transaction (depends on Account, Category, Merchant)
-7. Transfer (depends on Account)
-8. Budget (depends on Category)
-9. GoalContribution (depends on Goal)
-10. RecurringTransaction (depends on Account, Category, Merchant — Phase 2)
+2. WorkspaceMember (depends on Workspace)
+3. Account (depends on Workspace)
+4. Category (depends on Workspace)
+5. Merchant (depends on Workspace)
+6. Goal (depends on Workspace)
+7. Transaction (depends on Account, Category, Merchant)
+8. Transfer (depends on Account)
+9. Budget (depends on Category)
+10. GoalContribution (depends on Goal)
+11. RecurringTransaction (depends on Account, Category, Merchant — Phase 2)
 
 Pull responses from the server are returned in the same dependency order, and the Sync Orchestrator applies them in that order to avoid referencing a not-yet-applied parent record.
+
+### WorkspaceMember Sync Visibility
+
+WorkspaceMember records follow a role-based visibility rule during both push and pull:
+
+**Pull:** The server filters WorkspaceMember records before returning them in pull responses:
+- MEMBER and VIEWER clients receive only `ACTIVE` WorkspaceMember records — they see who is in the workspace, but not pending invites or revoked members.
+- OWNER and ADMIN clients receive records of all statuses (`PENDING`, `ACTIVE`, `REVOKED`) — they need full visibility to manage invitations and access.
+
+**Push:** The client only pushes WorkspaceMember records it has authority over:
+- MEMBER and VIEWER clients never push WorkspaceMember records — membership changes are server-orchestrated via the invite flow (`POST /api/v1/workspace-members/invite`, `POST /api/v1/workspace-members/accept`).
+- OWNER and ADMIN clients may push WorkspaceMember updates (e.g. role changes) as part of the standard sync cycle.
+
+**Security note:** `invite_token` and `invite_expires_at` are server-only fields on WorkspaceMember. They are never included in push payloads sent by the client and are never returned in pull responses. The server validates and clears them internally during invite acceptance.
 
 ---
 
@@ -504,12 +528,13 @@ This section defines what `offline-sync.md` requires from the API contract. Full
 ### Push Endpoint Expectations
 
 - `POST /api/v1/sync/push`
-- Accepts a batch of records across all entity types in a single request.
+- Accepts a batch of records grouped by entity type (entity-keyed arrays) in a single request.
 - Performs upsert on `id` — creates if not found, updates if found.
-- Each record is processed independently. Returns per-record results: `success`, `conflict`, or `error`. A failure on one record does not affect others.
-- `conflict` responses include the server's current version of the record for display in the conflict resolution UI.
+- Each record is processed independently. Returns an entity-keyed, outcome-keyed response with three arrays per entity type: `accepted`, `conflicts`, `rejected`. A failure on one record does not affect others.
+- `conflicts` entries include the server's current version of the record for display in the conflict resolution UI.
 - Conflict override: a `force: true` flag on a record instructs the server to accept the client version unconditionally (used when the user chooses to keep their local version after conflict resolution).
 - The server stores the client-provided `updated_at` as-is. It does not overwrite it with the server's own clock.
+- `sync_status` and `last_synced_at` must be omitted from push payloads — they are client-only fields. The server rejects records that include them.
 
 ### Idempotent Operations
 
@@ -615,7 +640,7 @@ JWTs used to authenticate sync requests are stored in `EncryptedSharedPreference
 
 ### Workspace Isolation
 
-The backend enforces workspace isolation at the query layer — all sync operations are scoped to the `workspace_id` derived from the authenticated user's JWT claims. A user cannot read or write records belonging to a workspace they are not a member of.
+The backend enforces workspace isolation at the query layer — all sync operations are scoped to the `workspace_id` derived from the validated `X-Workspace-ID` request header, cross-referenced against the authenticated user's `WorkspaceMember` record. A user cannot read or write records belonging to a workspace they are not an `ACTIVE` member of.
 
 ### Sensitive Financial Data
 
@@ -650,3 +675,4 @@ Financial data (transactions, balances, budgets) is never logged in plain text o
 | 0.1.0 | 2026-05-15 | Danielle Mariani | Initial draft |
 | 0.2.0 | 2026-05-17 | Danielle Mariani | Add NULL sync_status handling for Phase 1 records. Add semantic equality check to Pull Flow and Conflict Resolution. Clarify record-level batch isolation in Push Flow, Batch Processing, and Partial Sync Failures. Clarify updated_at as client-originated; server does not overwrite. Add device clock skew as known limitation. Add Sync Concurrency Policy section. Clarify payload sort order. Update SyncOrchestrator open question with pragmatic middle-ground option. Expand FCM description in Future Enhancements. |
 | 0.3.0 | 2026-05-18 | Danielle Mariani | Add Cancellation Behavior subsection covering graceful close, process kill, and WorkManager cancellation. Add Interruption Safety core principle. Add server_received_at to Backend Responsibilities with audit, telemetry, and debugging rationale. Simplify updated_at rule to client-authoritative only. Fix Single Sync at a Time wording from "may" to "must". Update Goals and Android Client Responsibilities to reflect cancellation safety. |
+| 0.4.0 | 2026-05-23 | Danielle Mariani | Add WorkspaceMember at position 2 in canonical dependency order (after Workspace, before Account); renumber positions 3–11. Add WorkspaceMember Sync Visibility subsection covering role-based pull filtering, push authority rules, and server-only field note for invite_token and invite_expires_at. Add Client-Only Fields subsection to Sync Metadata clarifying sync_status and last_synced_at are never included in push payloads or pull responses. Update Push Endpoint Expectations to reflect entity-keyed accepted/conflicts/rejected response shape and add sync_status/last_synced_at omission rule. Update Push Flow outcome terminology to match (accepted/conflicts/rejected). Update Workspace Isolation to reference X-Workspace-ID header. |
