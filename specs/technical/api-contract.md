@@ -1,10 +1,10 @@
 # API Contract — Budget App
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-19
-**Last Updated:** 2026-05-20
+**Last Updated:** 2026-05-22
 
 ---
 
@@ -63,14 +63,16 @@ Every authenticated request must include both of the following headers:
 
 **`X-Workspace-ID` behavior:**
 - The server validates that the authenticated user is an `ACTIVE` member of the specified workspace via `WorkspaceMember` before processing any request.
-- In Phase 2 (single workspace per user), this header will always carry the user's default workspace ID. It is required from Phase 2 to avoid a breaking change when multi-workspace is introduced in Phase 4.
+- In Phase 2 (single workspace per user), this header always carries the user's default workspace ID. It is required from Phase 2 to avoid a breaking change when multi-workspace is introduced in Phase 4.
 - In Phase 4, the client switches workspaces by changing this header value — no token exchange required.
 - Requests with a missing or invalid `X-Workspace-ID` return `403 Forbidden`.
+- Exception: `POST /api/v1/workspace-members/accept` is exempt — the invitee is not yet a workspace member when accepting.
 
 ### Request Format
 
 - All request bodies are JSON (`Content-Type: application/json`)
 - All requests must include both required headers (see above)
+- Query parameters are URL-encoded and appended to the request URL. They are used on `GET` requests only — `POST`, `PATCH`, and `DELETE` use JSON request bodies.
 
 ### Response Format
 
@@ -81,7 +83,7 @@ Every authenticated request must include both of the following headers:
 
 ### Response Envelope
 
-All single-resource and list responses share a consistent envelope structure. Clients should always read from `data` and never assume the root of a response is the resource itself.
+All single-resource and list responses share a consistent envelope. Clients always read from `data` and never assume the root of a response is the resource itself.
 
 **Single resource:**
 ```json
@@ -106,7 +108,17 @@ All single-resource and list responses share a consistent envelope structure. Cl
 }
 ```
 
-`meta` is present on every response. It is never null. `request_id` can be used by clients to report issues and by the server for log correlation.
+`meta` is present on every response and is never null. `request_id` can be used by clients to report issues and by the server for log correlation.
+
+### PATCH Semantics
+
+All `PATCH` endpoints follow these rules globally:
+
+- **Field omitted** → property is unchanged
+- **Field present with a value** → property is updated to that value
+- **Field present as `null`** → property is cleared (only valid on nullable fields; sending `null` on a non-nullable field returns `400 VALIDATION_ERROR`)
+
+Individual endpoint definitions do not repeat these rules. Only immutability constraints (fields that cannot be changed after creation) are called out per endpoint.
 
 ### Workspace Scoping
 
@@ -158,7 +170,7 @@ When an endpoint or field is deprecated:
 3. The deprecated item remains functional for a minimum of one full release cycle before removal
 4. Removal is only performed in a new major version (`v2`)
 
-As of v0.2.0, no items are deprecated.
+As of v0.3.0, no items are deprecated.
 
 ### Multi-Client Considerations
 
@@ -200,7 +212,7 @@ The backend validates the following on every JWT:
 - **Signature** — verified using `SUPABASE_JWT_SECRET` (no Supabase network call per request)
 - **Expiry** (`exp` claim) — rejected if expired
 - **Issuer** (`iss` claim) — must match the configured Supabase project URL
-- **User membership** — `user_id` from JWT must have an `ACTIVE` WorkspaceMember record for the requested workspace
+- **User membership** — `user_id` from JWT must have an `ACTIVE` `WorkspaceMember` record for the requested workspace
 
 Token refresh is handled by the Supabase SDK on the client. When the backend returns `401`, the client refreshes and retries. Full lifecycle in `specs/features/auth/spec.md`.
 
@@ -222,7 +234,7 @@ Roles are defined on the `WorkspaceMember` entity. Every endpoint specifies the 
 | Invite / manage / remove members | ✓ | ✓ | ✗ | ✗ |
 | Transfer workspace ownership | ✓ | ✗ | ✗ | ✗ |
 
-**VIEWER balance restriction:** VIEWER responses for Account objects omit `initial_balance` and `credit_limit`. Net worth aggregates in the Dashboard are omitted entirely for VIEWERs.
+**VIEWER balance restriction:** VIEWER responses for Account objects omit `initial_balance` and `credit_limit`. Net worth aggregates in the workspace summary are omitted entirely for VIEWERs.
 
 ### Workspace Member Invite Flow
 
@@ -249,6 +261,48 @@ OWNER/ADMIN calls POST /api/v1/workspace-members/invite
 
 ---
 
+## Client Source of Truth Rules
+
+This section defines which data source is authoritative for each client platform and how clients should interact with the API relative to their local state.
+
+### Android
+
+**Room is the source of truth.** All reads and writes go through Room first. The API is never called directly for data that is available locally.
+
+- All user-initiated writes update Room immediately and set `sync_status = PENDING`. The sync engine propagates changes to the server asynchronously.
+- Feature APIs are not called for standard read operations — all list and detail views are driven by Room queries.
+- After a successful write via a feature API (e.g. during onboarding), Room must be updated immediately — the client does not wait for a sync pull to reflect the change locally.
+- Computed fields (`spending` on Budget, `progress` on Goal) are calculated locally from Room data using the same formulas defined in this contract. Server-computed values from feature API responses may be used to reconcile after a pull.
+- Sync pull responses are applied to Room record-by-record. The watermark advances only after a complete successful pull cycle.
+
+### Web
+
+**Feature APIs are the source of truth.** The web client has no persistent local database.
+
+- All reads call the relevant feature API. TanStack Query manages caching and cache invalidation.
+- The TanStack Query cache is ephemeral — it is not persisted across sessions and must not be treated as a source of truth.
+- On mutation (POST, PATCH, DELETE), the relevant TanStack Query cache keys are invalidated immediately to trigger a fresh fetch.
+- Computed fields (`spending`, `progress`) come from the server response and are never recalculated client-side.
+- The workspace summary endpoint (`GET /api/v1/workspaces/{workspace_id}/summary`) is the primary data source for the dashboard screen — a single request replaces multiple parallel feature API calls.
+- The web client does not interact with the sync push/pull endpoints. Sync is an Android (and future Flutter/KMP) concern.
+
+### Flutter/KMP *(Phase 4 — TBD)*
+
+Expected to mirror the Android model — local database as source of truth, feature APIs secondary, sync engine for server propagation. The specific local database technology (SQLite via Flutter, Room via KMP) is TBD pending the Flutter vs KMP decision at Phase 4 kickoff. Computed fields will be calculated locally from the local database, consistent with the Android approach.
+
+### Computed Fields — Server Authority
+
+Regardless of platform, computed fields are always derived from persisted data using the formulas defined in this contract:
+
+- **Budget `spending.spent_amount`** — `SUM(transaction.amount WHERE category_id, period, type=EXPENSE, deleted_at IS NULL)`
+- **Budget `spending.remaining_amount`** — `planned_amount - spent_amount` (negative = overspent, per BR-BU-04)
+- **Goal `progress.contributed_amount`** — `SUM(goal_contribution.amount WHERE goal_id, deleted_at IS NULL)`
+- **Goal `progress.progress_percentage`** — `contributed_amount / target_amount` (may exceed 1.0)
+
+These values are never stored — they are always calculated at query time, whether by the server (web) or the local database (Android/Flutter/KMP).
+
+---
+
 ## Shared Schemas
 
 These schemas are reused across multiple endpoints. Individual endpoint definitions reference them by name.
@@ -264,23 +318,40 @@ Present on every response in the `meta` field.
 }
 ```
 
-### Sync Metadata
+### Push Record Schema
 
-Present on every entity in sync push and pull payloads. Reflects the sync fields defined in `data-model.md`. Omitted from standard feature endpoint responses.
+The fields included when sending a record to the server via `POST /api/v1/sync/push`. `sync_status` and `last_synced_at` are client-only fields and must never be sent to the server.
 
 ```json
 {
-  "sync_status": "PENDING | SYNCED | FAILED | CONFLICT | null",
-  "last_synced_at": "integer (Unix UTC) | null",
-  "updated_at": "integer (Unix UTC)",
+  "id": "string (UUID v4)",
+  "...all business fields for the entity...",
+  "updated_at": "integer (Unix UTC) — client-provided; server stores as-is for conflict detection",
+  "deleted_at": "integer (Unix UTC) | null — non-null propagates soft delete to server",
+  "force": "boolean | omit — if true, server accepts this record unconditionally, bypassing conflict detection"
+}
+```
+
+**Fields always omitted from push payloads:**
+- `sync_status` — client-only state machine; meaningless to the server
+- `last_synced_at` — client bookkeeping; meaningless to the server
+
+### Pull Record Schema
+
+The fields the server returns for a record via `GET /api/v1/sync/pull`. The client applies these to its local database and updates `sync_status` and `last_synced_at` locally after applying.
+
+```json
+{
+  "id": "string (UUID v4)",
+  "...all business fields for the entity...",
+  "updated_at": "integer (Unix UTC) — the client-provided value stored by the server",
   "deleted_at": "integer (Unix UTC) | null"
 }
 ```
 
-**Notes:**
-- `updated_at` is always client-provided on push. The server stores it as-is and never overwrites it with the server clock.
-- `deleted_at` non-null indicates a soft-deleted record. Included in pull payloads so deletions propagate to all clients.
-- `sync_status` and `last_synced_at` in a pull response reflect the server's view. Clients update local values after applying the record.
+**Fields never returned in pull payloads:**
+- `sync_status` — the client sets this to `SYNCED` locally after successfully applying the record
+- `last_synced_at` — the client updates this locally after applying the record
 
 ### Pagination Schema
 
@@ -378,33 +449,6 @@ Returned per-record in sync push responses when the server detects a conflict.
 
 `server_version` contains the full entity object so the conflict resolution UI can present both versions. Full resolution flow: `specs/features/sync/spec.md`.
 
-### Batch Result Schema
-
-Returned by `POST /api/v1/sync/push`. One result entry per submitted record.
-
-```json
-{
-  "results": [
-    {
-      "id": "string (UUID)",
-      "entity_type": "string",
-      "status": "success | conflict | error",
-      "conflict": "ConflictSchema object | null",
-      "error": "ErrorSchema object | null",
-      "server_updated_at": "integer (Unix UTC) | null"
-    }
-  ],
-  "summary": {
-    "total": "integer",
-    "success_count": "integer",
-    "conflict_count": "integer",
-    "error_count": "integer"
-  }
-}
-```
-
-`conflict` is populated only when `status = conflict`. `error` is populated only when `status = error`. `server_updated_at` is the server's stored `updated_at` after processing — used by the client to reconcile timestamps on successful push.
-
 ### Budget Spending Schema
 
 Included in Budget responses as a server-computed `spending` object. Never stored — calculated at query time.
@@ -440,7 +484,7 @@ Included in Goal responses as a server-computed `progress` object. Never stored 
 
 These schemas define the wire format for each entity as exchanged between client and server. They are distinct from Room entities and domain models used internally by clients. Fields map closely to `data-model.md` but the transport schema is independently versioned.
 
-All entity objects include Sync Metadata fields in sync payloads. Standard feature endpoint responses omit sync metadata fields unless noted.
+All entity objects include Push Record or Pull Record fields in sync payloads (see Shared Schemas). `sync_status` and `last_synced_at` are never present in any API payload — they are client-only fields. Standard feature endpoint responses omit sync-related fields entirely unless noted.
 
 ### Workspace
 
@@ -461,7 +505,7 @@ All entity objects include Sync Metadata fields in sync payloads. Standard featu
 {
   "id": "string (UUID v4)",
   "workspace_id": "string (UUID v4)",
-  "user_id": "string (UUID v4)",
+  "user_id": "string (UUID v4) — omitted for VIEWER role",
   "role": "OWNER | ADMIN | MEMBER | VIEWER",
   "status": "PENDING | ACTIVE | REVOKED",
   "invited_at": "integer (Unix UTC) | null",
@@ -472,9 +516,7 @@ All entity objects include Sync Metadata fields in sync payloads. Standard featu
 }
 ```
 
-**Note:** The `status` field is a pending delta to `data-model.md` v0.5.0. `data-model.md` must be updated before Phase 2 implementation to add `status`, `invite_token`, and `invite_expires_at` to the WorkspaceMember entity.
-
-**VIEWER visibility:** VIEWER responses omit `user_id` to protect member privacy. Name and role are included.
+**Note:** The `status` field (`PENDING`, `ACTIVE`, `REVOKED`) and invite fields (`invite_token`, `invite_expires_at`) are pending additions to `data-model.md` v0.5.0. These must be added before Phase 2 implementation.
 
 ### Account
 
@@ -574,14 +616,12 @@ All entity objects include Sync Metadata fields in sync payloads. Standard featu
   "period_year": "integer (e.g. 2026)",
   "period_month": "integer (1–12)",
   "carry_forward": "boolean",
-  "spending": { "...BudgetSpendingSchema..." },
+  "spending": { "...BudgetSpendingSchema — included in feature API responses, omitted from sync payloads..." },
   "created_at": "integer (Unix UTC)",
   "updated_at": "integer (Unix UTC)",
   "deleted_at": "integer (Unix UTC) | null"
 }
 ```
-
-`spending` is always included in feature endpoint responses. It is omitted from sync payloads (derived values are never synced).
 
 ### Goal
 
@@ -594,14 +634,12 @@ All entity objects include Sync Metadata fields in sync payloads. Standard featu
   "currency_code": "string (ISO 4217)",
   "target_date": "integer (Unix UTC) | null",
   "notes": "string | null",
-  "progress": { "...GoalProgressSchema..." },
+  "progress": { "...GoalProgressSchema — included in feature API responses, omitted from sync payloads..." },
   "created_at": "integer (Unix UTC)",
   "updated_at": "integer (Unix UTC)",
   "deleted_at": "integer (Unix UTC) | null"
 }
 ```
-
-`progress` is always included in feature endpoint responses. It is omitted from sync payloads.
 
 ### GoalContribution
 
@@ -642,11 +680,11 @@ The following dependency order governs both sync push payloads and sync pull res
 | 10 | GoalContribution | Goal |
 | 11 | RecurringTransaction | Account, Category, Merchant (optional) — Phase 2 |
 
-**Push:** The client groups records into entity-keyed arrays. The server processes them in this order regardless of array order in the request body — ordering is enforced server-side.
+**Push:** The client groups records into entity-keyed arrays. The server processes them in this canonical order regardless of array order in the request body — ordering is enforced server-side.
 
 **Pull:** The server returns records grouped by entity type in this dependency order. The client applies them in the order received.
 
-**WorkspaceMember sync visibility:** Only `ACTIVE` WorkspaceMember records are included in pull payloads delivered to MEMBER and VIEWER roles. `PENDING` and `REVOKED` records are visible only to OWNER and ADMIN via the WorkspaceMember feature API.
+**WorkspaceMember sync visibility:** Only `ACTIVE` WorkspaceMember records are included in pull payloads delivered to MEMBER and VIEWER clients. `PENDING` and `REVOKED` records are visible only to OWNER and ADMIN via the WorkspaceMember feature API.
 
 **Within an entity type:** No business-field sort order (e.g. by date) is applied. Ordering within a type is arbitrary. UI sort order is a query-time concern handled by the client's local database.
 
@@ -654,98 +692,110 @@ The following dependency order governs both sync push payloads and sync pull res
 
 ## Sync API
 
-The sync API provides bidirectional, offline-first data synchronization. Full strategy and conflict resolution are in `specs/technical/offline-sync.md`. This section defines the concrete endpoint contracts.
+The sync API provides bidirectional, offline-first data synchronization. Full strategy and conflict resolution are specified in `specs/technical/offline-sync.md`. This section defines the concrete endpoint contracts.
 
 ### POST /api/v1/sync/push
 
 Pushes locally modified records from the client to the server. Accepts a batch of records grouped by entity type. Each record is processed independently — a failure on one record does not affect others.
 
-**Auth requirements:** MEMBER or above (all roles except VIEWER)
+**Auth requirements:** MEMBER or above
 
 **Request schema:**
 
+Records in each array follow the Push Record Schema. `sync_status` and `last_synced_at` must be omitted. Computed fields (`spending`, `progress`) must be omitted.
+
 ```json
 {
-  "workspaces":             ["array of Workspace objects with Sync Metadata | omit key if empty"],
-  "workspace_members":      ["array of WorkspaceMember objects with Sync Metadata | omit key if empty"],
-  "accounts":               ["array of Account objects with Sync Metadata | omit key if empty"],
-  "categories":             ["array of Category objects with Sync Metadata | omit key if empty"],
-  "merchants":              ["array of Merchant objects with Sync Metadata | omit key if empty"],
-  "goals":                  ["array of Goal objects with Sync Metadata | omit key if empty"],
-  "transactions":           ["array of Transaction objects with Sync Metadata | omit key if empty"],
-  "transfers":              ["array of Transfer objects with Sync Metadata | omit key if empty"],
-  "budgets":                ["array of Budget objects with Sync Metadata | omit key if empty"],
-  "goal_contributions":     ["array of GoalContribution objects with Sync Metadata | omit key if empty"],
-  "recurring_transactions": ["array of RecurringTransaction objects with Sync Metadata | omit key if empty — Phase 2"]
+  "workspaces":             ["array of Workspace push records | omit key if empty"],
+  "workspace_members":      ["array of WorkspaceMember push records | omit key if empty"],
+  "accounts":               ["array of Account push records | omit key if empty"],
+  "categories":             ["array of Category push records | omit key if empty"],
+  "merchants":              ["array of Merchant push records | omit key if empty"],
+  "goals":                  ["array of Goal push records | omit key if empty"],
+  "transactions":           ["array of Transaction push records | omit key if empty"],
+  "transfers":              ["array of Transfer push records | omit key if empty"],
+  "budgets":                ["array of Budget push records | omit key if empty"],
+  "goal_contributions":     ["array of GoalContribution push records | omit key if empty"],
+  "recurring_transactions": ["array of RecurringTransaction push records | omit key if empty — Phase 2"]
 }
 ```
 
-Each record includes the full Sync Metadata block. `updated_at` is always client-provided; the server stores it as-is. Computed fields (`spending`, `progress`) must be omitted from push payloads.
+**Batch size:** Default 100 records per request across all entity types combined. The client splits larger pending sets into sequential requests.
 
-**Batch size:** Default 100 records per request across all entity types combined. Larger pending sets are split into sequential requests by the client.
+**Force flag:** Include `"force": true` on an individual record object to instruct the server to accept it unconditionally, bypassing conflict detection. Used when the user chooses to keep their local version after conflict resolution.
 
-**Force flag:** Include `"force": true` on an individual entity object to instruct the server to accept that record unconditionally, bypassing conflict detection. Used when the user chooses to keep their local version after conflict resolution.
+**Response schema:**
 
-**Response schema:** See Batch Result Schema.
+The response is entity-keyed and outcome-keyed. Each entity type present in the push appears as a key, with three outcome arrays: `accepted`, `conflicts`, `rejected`. A top-level `summary` provides aggregate counts without requiring the client to iterate all entity keys.
 
-**Sample response:**
 ```json
 {
-  "results": [
-    {
-      "id": "a1b2c3d4-...",
-      "entity_type": "transaction",
-      "status": "success",
-      "conflict": null,
-      "error": null,
-      "server_updated_at": 1716000000
-    },
-    {
-      "id": "e5f6g7h8-...",
-      "entity_type": "account",
-      "status": "conflict",
-      "conflict": {
-        "id": "e5f6g7h8-...",
-        "entity_type": "account",
-        "conflict_type": "UPDATED_VS_UPDATED",
-        "server_version": { "...full Account object..." },
-        "client_updated_at": 1715999000,
-        "server_updated_at": 1716000500
-      },
-      "error": null,
-      "server_updated_at": null
-    }
-  ],
+  "transactions": {
+    "accepted": [
+      {
+        "id": "string (UUID)",
+        "server_updated_at": "integer (Unix UTC)"
+      }
+    ],
+    "conflicts": [
+      {
+        "id": "string (UUID)",
+        "entity_type": "transaction",
+        "conflict_type": "UPDATED_VS_UPDATED | DELETED_VS_UPDATED | UPDATED_VS_DELETED",
+        "server_version": { "...full Transaction object as stored on server..." },
+        "client_updated_at": "integer (Unix UTC)",
+        "server_updated_at": "integer (Unix UTC)"
+      }
+    ],
+    "rejected": [
+      {
+        "id": "string (UUID)",
+        "error": {
+          "code": "string (e.g. VALIDATION_ERROR)",
+          "message": "string (human-readable)",
+          "details": "object | null"
+        }
+      }
+    ]
+  },
+  "accounts": {
+    "accepted": [...],
+    "conflicts": [...],
+    "rejected": [...]
+  },
   "summary": {
-    "total": 2,
-    "success_count": 1,
-    "conflict_count": 1,
-    "error_count": 0
-  }
+    "total": "integer",
+    "accepted_count": "integer",
+    "conflict_count": "integer",
+    "rejected_count": "integer"
+  },
+  "meta": { "...Metadata..." }
 }
 ```
+
+Only entity types present in the request appear as keys in the response. Empty outcome arrays (`accepted`, `conflicts`, `rejected`) may be omitted.
 
 **Server behavior:**
 - Upserts on `id` — creates if not found, updates if found
-- Conflict detection: if the server's stored `updated_at` is newer than the incoming record's `updated_at` and `force` is not set, returns `status: conflict` for that record
+- Conflict detection: if the server's stored `updated_at` is newer than the incoming record's `updated_at` and `force` is not set, the record appears in `conflicts`
 - `force: true` bypasses conflict detection and applies the client version unconditionally
-- Records the client-provided `updated_at` as-is; also writes an internal `server_received_at` (not returned to clients) for audit and telemetry
-- Validates all records against schema constraints; invalid records return `status: error` without affecting other records
+- Stores the client-provided `updated_at` as-is; also writes an internal `server_received_at` (not returned to clients) for audit and telemetry
+- Validates all records against schema constraints; invalid records appear in `rejected` without affecting other records
 - Enforces the canonical entity ordering server-side regardless of array order in the request
+
+**Client behavior after receiving the response:**
+- `accepted` records → mark `SYNCED` locally, update `last_synced_at`, reconcile `updated_at` to `server_updated_at`
+- `conflicts` records → mark `CONFLICT` locally; do not overwrite local data until user resolves
+- `rejected` records → mark `FAILED` locally; retry with exponential backoff
 
 **HTTP status codes:**
 
 | Code | Meaning |
 |---|---|
-| 200 | Request processed. Inspect per-record `status` for individual outcomes. |
-| 400 | Malformed request body (structural, not per-record validation failures) |
+| 200 | Request processed. Inspect per-entity outcome arrays for individual results. |
+| 400 | Malformed request body (structural, not per-record validation failures — those appear in `rejected`) |
 | 401 | Unauthorized |
-| 403 | `X-Workspace-ID` mismatch or insufficient role |
-
-**Sync considerations:**
-- Client marks successfully pushed records `SYNCED` and updates `last_synced_at`
-- `conflict` records are marked `CONFLICT` locally; not overwritten until user resolves
-- `error` records are marked `FAILED` locally and retried with exponential backoff
+| 403 | Invalid `X-Workspace-ID` or insufficient role |
 
 ---
 
@@ -753,7 +803,7 @@ Each record includes the full Sync Metadata block. `updated_at` is always client
 
 Pulls records modified on the server since the client's last watermark. Returns records in canonical entity dependency order using cursor-based pagination. Includes soft-deleted records.
 
-**Auth requirements:** VIEWER or above (all roles)
+**Auth requirements:** VIEWER or above
 
 **Query parameters:**
 
@@ -761,24 +811,26 @@ Pulls records modified on the server since the client's last watermark. Returns 
 |---|---|---|---|
 | `since` | integer (Unix UTC) | No | Watermark from last successful pull. Omit for first full sync — server returns all workspace records. |
 | `cursor` | string | No | Opaque pagination cursor from previous page. Omit for first page. |
-| `page_size` | integer | No | Records per page. Default: 500, max: 500. |
+| `page_size` | integer | No | Records per page. Default: 500, max: 500 |
 
 **Response schema:**
+
+Records follow the Pull Record Schema. `sync_status` and `last_synced_at` are never present in pull payloads — the client sets these locally after applying each record.
 
 ```json
 {
   "data": {
-    "workspaces":             ["array of Workspace objects with Sync Metadata"],
-    "workspace_members":      ["array of WorkspaceMember objects with Sync Metadata"],
-    "accounts":               ["array of Account objects with Sync Metadata"],
-    "categories":             ["array of Category objects with Sync Metadata"],
-    "merchants":              ["array of Merchant objects with Sync Metadata"],
-    "goals":                  ["array of Goal objects with Sync Metadata"],
-    "transactions":           ["array of Transaction objects with Sync Metadata"],
-    "transfers":              ["array of Transfer objects with Sync Metadata"],
-    "budgets":                ["array of Budget objects with Sync Metadata"],
-    "goal_contributions":     ["array of GoalContribution objects with Sync Metadata"],
-    "recurring_transactions": ["array of RecurringTransaction objects with Sync Metadata — Phase 2"]
+    "workspaces":             ["array of Workspace pull records"],
+    "workspace_members":      ["array of WorkspaceMember pull records"],
+    "accounts":               ["array of Account pull records"],
+    "categories":             ["array of Category pull records"],
+    "merchants":              ["array of Merchant pull records"],
+    "goals":                  ["array of Goal pull records"],
+    "transactions":           ["array of Transaction pull records"],
+    "transfers":              ["array of Transfer pull records"],
+    "budgets":                ["array of Budget pull records"],
+    "goal_contributions":     ["array of GoalContribution pull records"],
+    "recurring_transactions": ["array of RecurringTransaction pull records — Phase 2"]
   },
   "pagination": {
     "next_cursor": "string | null",
@@ -795,12 +847,13 @@ Pulls records modified on the server since the client's last watermark. Returns 
 - Filters WorkspaceMember records by role: MEMBER/VIEWER receive only `ACTIVE` members; OWNER/ADMIN receive all statuses
 - Returns records grouped by entity type in canonical dependency order
 - Cursor is a composite of `updated_at` + `id` of the last record on the current page — stable under concurrent server-side inserts
-- If `since` is omitted, all workspace records are returned (first full sync)
+- If `since` is omitted, returns all workspace records (first full sync)
+- Computed fields (`spending`, `progress`) are omitted from pull payloads — clients recalculate these locally
 
 **Client behavior:**
 - Must follow all pages until `has_next = false` before advancing the local watermark
-- For each received record: if local `sync_status = SYNCED`, overwrite with server version; if `sync_status IN (PENDING, FAILED, NULL)`, perform semantic equality check before flagging conflict (see `offline-sync.md`)
-- Advance watermark only after all pages are successfully applied
+- For each received record: if local `sync_status = SYNCED`, overwrite with server version and mark `SYNCED`; if `sync_status IN (PENDING, FAILED, NULL)`, perform semantic equality check before flagging conflict (see `offline-sync.md`)
+- After all pages are applied, advance local watermark and set `last_synced_at` on each applied record
 
 **HTTP status codes:**
 
@@ -815,13 +868,13 @@ Pulls records modified on the server since the client's last watermark. Returns 
 
 ## Feature APIs
 
-Feature APIs provide CRUD access for UI-driven flows. In Phase 2, the Android client reads primarily from Room (offline-first) and uses sync for server propagation. Feature endpoints are used for specific read scenarios and are the primary data source for the web client in Phase 3.
+Feature APIs provide CRUD access for UI-driven flows. In Phase 2, the Android client reads primarily from Room (offline-first) and uses the sync API for server propagation. Feature endpoints are used for specific write scenarios (e.g. onboarding) and are the primary data source for the web client in Phase 3.
 
 ### Date Filtering
 
-The following filter parameters are standardized across all list endpoints that return date-scoped records (Transactions, Transfers, GoalContributions, and Budget). Two approaches are supported:
+The following filter parameters are standardized across all list endpoints that return date-scoped records (Transactions, Transfers, GoalContributions, and Budgets). Two approaches are supported and may not be combined — explicit date range takes precedence if both are provided.
 
-**Period presets** — convenience shortcuts the server resolves to a date range:
+**Period presets** (`period` query parameter):
 
 | Value | Resolves To |
 |---|---|
@@ -832,9 +885,9 @@ The following filter parameters are standardized across all list endpoints that 
 | `ytd` | January 1 to today of the current year |
 | `this_year` | Full current calendar year |
 
-**Explicit date range** — `date_from` and `date_to` as Unix timestamps (inclusive). Takes precedence over `period` if both are provided.
+**Explicit date range:** `date_from` and `date_to` as Unix timestamps (inclusive). Takes precedence over `period` if both are provided.
 
-**Note:** All period presets are resolved server-side in UTC. Timezone handling is deferred — see Open Questions.
+**Note:** All period presets are resolved server-side in UTC. Timezone-aware resolution is deferred — see Open Questions.
 
 ---
 
@@ -842,7 +895,7 @@ The following filter parameters are standardized across all list endpoints that 
 
 #### GET /api/v1/workspaces
 
-**Purpose:** List all workspaces the authenticated user belongs to. In Phase 2 this returns exactly one workspace. In Phase 4 it returns all workspaces the user is an active member of.
+**Purpose:** List all workspaces the authenticated user belongs to. Returns one workspace in Phase 2. Returns all workspaces the user is an active member of in Phase 4.
 
 **Auth requirements:** VIEWER or above
 
@@ -864,8 +917,6 @@ The following filter parameters are standardized across all list endpoints that 
 
 **Business rule references:** BR-WS-01, BR-WS-03
 
-**Sync considerations:** Phase 4 multi-workspace — client uses this list to populate the workspace switcher and determine valid `X-Workspace-ID` values.
-
 ---
 
 #### GET /api/v1/workspaces/{workspace_id}
@@ -883,7 +934,7 @@ The following filter parameters are standardized across all list endpoints that 
 ```
 
 **Validation rules:**
-- `workspace_id` must match the `X-Workspace-ID` header value. Requesting a workspace the user is not a member of returns `403`.
+- `workspace_id` must match the `X-Workspace-ID` header. Requesting a workspace the user is not a member of returns `403`.
 
 **Business rule references:** BR-WS-01, BR-WS-02
 
@@ -898,8 +949,8 @@ The following filter parameters are standardized across all list endpoints that 
 **Request schema:**
 ```json
 {
-  "name": "string | omit if unchanged",
-  "base_currency": "string (ISO 4217) | omit if unchanged"
+  "name": "string",
+  "base_currency": "string (ISO 4217)"
 }
 ```
 
@@ -921,11 +972,97 @@ The following filter parameters are standardized across all list endpoints that 
 
 ---
 
+#### GET /api/v1/workspaces/{workspace_id}/summary
+
+**Purpose:** Return a pre-aggregated snapshot of the workspace's financial health. Designed as a Backend For Frontend (BFF) endpoint — a single request that assembles everything the dashboard screen needs, avoiding multiple round-trips from the web client. The Android client generates equivalent data locally from Room queries and does not call this endpoint in Phase 2.
+
+**Auth requirements:** VIEWER or above. `net_worth` block is omitted entirely for VIEWER role.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `period_year` | integer | No | Year for budget and spending blocks. Default: current year. |
+| `period_month` | integer | No | Month for budget and spending blocks. Default: current month. |
+
+**Response schema:**
+```json
+{
+  "data": {
+    "net_worth": {
+      "total_assets": "integer (cents) — sum of CHECKING + SAVINGS account balances",
+      "total_liabilities": "integer (cents) — sum of CREDIT_CARD balances",
+      "net_worth": "integer (cents) — assets minus liabilities",
+      "currency_code": "string (ISO 4217) — workspace base_currency",
+      "note": "string | null — present if multi-currency accounts exist and totals are partial"
+    },
+    "current_period": {
+      "period_year": "integer",
+      "period_month": "integer",
+      "total_income": "integer (cents)",
+      "total_expenses": "integer (cents)",
+      "net": "integer (cents) — income minus expenses"
+    },
+    "previous_period": {
+      "period_year": "integer",
+      "period_month": "integer",
+      "total_income": "integer (cents)",
+      "total_expenses": "integer (cents)",
+      "net": "integer (cents)"
+    },
+    "budget_status": [
+      {
+        "category_id": "string (UUID v4)",
+        "category_name": "string",
+        "category_icon": "string | null",
+        "planned_amount": "integer (cents)",
+        "spent_amount": "integer (cents)",
+        "remaining_amount": "integer (cents)"
+      }
+    ],
+    "top_spending_categories": [
+      {
+        "category_id": "string (UUID v4)",
+        "category_name": "string",
+        "category_icon": "string | null",
+        "spent_amount": "integer (cents)",
+        "percentage_of_total": "float (0.0–1.0)"
+      }
+    ],
+    "goal_progress": [
+      {
+        "goal_id": "string (UUID v4)",
+        "goal_name": "string",
+        "target_amount": "integer (cents)",
+        "contributed_amount": "integer (cents)",
+        "progress_percentage": "float (0.0–1.0+)",
+        "target_date": "integer (Unix UTC) | null"
+      }
+    ],
+    "recent_transactions": [
+      { "...Transaction object (last 10, sorted by date descending)..." }
+    ]
+  },
+  "meta": { "...Metadata..." }
+}
+```
+
+**Notes:**
+- `budget_status` covers all budgets for the requested period, sorted by `remaining_amount` ascending (most overspent first)
+- `top_spending_categories` is the top 5 categories by `spent_amount` for the requested period
+- `net_worth` is omitted for VIEWER role
+- `note` in `net_worth` is included when the workspace has accounts in multiple currencies — aggregation is in `base_currency` only; cross-currency accounts are excluded with an explanatory note
+- Read-only. Not part of the sync push/pull cycle.
+
+**Business rule references:** BR-AC-01, BR-AC-02, BR-BU-01, BR-BU-04, BR-GL-01
+
+---
+
 ### WorkspaceMember API
 
 #### GET /api/v1/workspace-members
 
-**Purpose:** List workspace members. OWNER/ADMIN see all statuses (PENDING, ACTIVE, REVOKED). MEMBER and VIEWER see only ACTIVE members.
+**Purpose:** List workspace members. OWNER/ADMIN see all statuses. MEMBER and VIEWER see only ACTIVE members.
 
 **Auth requirements:** VIEWER or above
 
@@ -952,7 +1089,7 @@ The following filter parameters are standardized across all list endpoints that 
 
 #### POST /api/v1/workspace-members/invite
 
-**Purpose:** Invite a user to the workspace by email. Creates a PENDING WorkspaceMember record and sends an invite email.
+**Purpose:** Invite a user to the workspace by email. Creates a PENDING WorkspaceMember and sends an invite email.
 
 **Auth requirements:** ADMIN or above
 
@@ -972,23 +1109,24 @@ The following filter parameters are standardized across all list endpoints that 
 }
 ```
 
+HTTP 201.
+
 **Validation rules:**
-- `email` must be a valid email address
 - `role` must be one of `ADMIN`, `MEMBER`, `VIEWER` — OWNER cannot be assigned via invite
 - If a PENDING invite already exists for this email in this workspace, the existing invite is resent rather than creating a duplicate
-- If the email already belongs to an ACTIVE member of this workspace, returns `400 VALIDATION_ERROR`
+- If the email already belongs to an ACTIVE member, returns `400 VALIDATION_ERROR`
 
 **Business rule references:** BR-WS-05
 
-**Sync considerations:** PENDING WorkspaceMember records are not included in pull payloads for MEMBER/VIEWER clients. OWNER/ADMIN clients receive them.
+**Sync considerations:** PENDING WorkspaceMember records are not included in pull payloads for MEMBER/VIEWER clients.
 
 ---
 
 #### POST /api/v1/workspace-members/accept
 
-**Purpose:** Accept a workspace invite using the token from the invite email. Activates the WorkspaceMember record.
+**Purpose:** Accept a workspace invite using the token from the invite email.
 
-**Auth requirements:** Valid Supabase JWT (invitee must be authenticated). No workspace membership required — this endpoint is exempt from `X-Workspace-ID` validation since the user is not yet a member.
+**Auth requirements:** Valid Supabase JWT (invitee must be authenticated). Exempt from `X-Workspace-ID` validation — the user is not yet a workspace member.
 
 **Request schema:**
 ```json
@@ -1007,8 +1145,8 @@ The following filter parameters are standardized across all list endpoints that 
 
 **Validation rules:**
 - `invite_token` must be a valid, unexpired backend-issued JWT
-- Token `invitee_email` must match the authenticated user's email
-- If the token is expired, returns `400 VALIDATION_ERROR` with a prompt to request a new invite
+- Token `invitee_email` must match the authenticated user's Supabase email
+- Expired token returns `400 VALIDATION_ERROR` with a message prompting the user to request a new invite
 
 **Business rule references:** BR-WS-05
 
@@ -1033,8 +1171,7 @@ The following filter parameters are standardized across all list endpoints that 
 ```
 
 **Validation rules:**
-- Target member must have `status: PENDING`
-- Returns `400 VALIDATION_ERROR` if member is already ACTIVE or REVOKED
+- Target member must have `status: PENDING`. Returns `400 VALIDATION_ERROR` if ACTIVE or REVOKED.
 
 ---
 
@@ -1042,7 +1179,7 @@ The following filter parameters are standardized across all list endpoints that 
 
 **Purpose:** Change a member's role.
 
-**Auth requirements:** ADMIN or above. OWNER role can only be assigned or transferred by the current OWNER.
+**Auth requirements:** ADMIN or above. Only the current OWNER may assign the OWNER role.
 
 **Request schema:**
 ```json
@@ -1060,31 +1197,30 @@ The following filter parameters are standardized across all list endpoints that 
 ```
 
 **Validation rules:**
-- Assigning `OWNER` transfers ownership — the current OWNER is downgraded to `ADMIN` atomically. Only the current OWNER may perform this action.
-- A workspace must always have exactly one OWNER (BR-WS-05)
-- An ADMIN cannot change the OWNER's role
+- Assigning `OWNER` transfers ownership atomically — the current OWNER is downgraded to `ADMIN`. Only the current OWNER may perform this.
+- A workspace must always have exactly one active OWNER (BR-WS-05)
+- An ADMIN cannot change the current OWNER's role
 
 **Business rule references:** BR-WS-05
 
-**Sync considerations:** Role changes propagate to all clients via pull. Clients must re-evaluate permission-gated UI immediately on sync.
+**Sync considerations:** Role changes propagate to all clients via pull. Clients must re-evaluate permission-gated UI on next sync.
 
 ---
 
 #### DELETE /api/v1/workspace-members/{member_id}
 
-**Purpose:** Remove a member from the workspace. Sets `status: REVOKED` and `deleted_at`. The member loses access immediately.
+**Purpose:** Remove a member from the workspace. Sets `status: REVOKED` and `deleted_at`. Access is revoked immediately.
 
 **Auth requirements:** ADMIN or above. Members may delete their own membership (self-removal) regardless of role.
 
 **Response schema:** HTTP 204 No Content
 
 **Validation rules:**
-- OWNER cannot be removed. The OWNER role must be transferred before removal.
-- Removing the last OWNER returns `400 VALIDATION_ERROR` (BR-WS-05)
+- OWNER cannot be removed without first transferring ownership. Returns `400 VALIDATION_ERROR`.
 
 **Business rule references:** BR-WS-03, BR-WS-05, BR-DI-01
 
-**Sync considerations:** REVOKED members lose access immediately. Their subsequent requests return `403`. Their local data is not automatically purged — this is a client-side responsibility on logout.
+**Sync considerations:** Revoked members' subsequent requests return `403`. Local data purge on the revoked client is a client-side responsibility on logout.
 
 ---
 
@@ -1114,7 +1250,7 @@ The following filter parameters are standardized across all list endpoints that 
 
 **Business rule references:** BR-AC-01, BR-AC-02, BR-CU-02
 
-**Sync considerations:** `initial_balance` and `credit_limit` are omitted for VIEWER role responses.
+**Sync considerations:** `initial_balance` and `credit_limit` are omitted for VIEWER role.
 
 ---
 
@@ -1133,8 +1269,7 @@ The following filter parameters are standardized across all list endpoints that 
 ```
 
 **Validation rules:**
-- Must exist and belong to the workspace
-- Returns `404` if soft-deleted
+- Must exist and belong to the workspace. Returns `404` if soft-deleted.
 
 **Business rule references:** BR-AC-01, BR-CU-02
 
@@ -1188,12 +1323,12 @@ HTTP 201.
 **Request schema:**
 ```json
 {
-  "name": "string | omit if unchanged",
-  "credit_limit": "integer (cents) | null | omit if unchanged"
+  "name": "string",
+  "credit_limit": "integer (cents) | null"
 }
 ```
 
-Note: `type` and `currency_code` are immutable after creation.
+**Immutable fields:** `type`, `currency_code`
 
 **Response schema:**
 ```json
@@ -1205,7 +1340,7 @@ Note: `type` and `currency_code` are immutable after creation.
 
 **Validation rules:**
 - `name` must be non-empty and remain unique within the workspace if provided
-- `credit_limit` only meaningful for `CREDIT_CARD` accounts
+- `credit_limit` is only meaningful for `CREDIT_CARD` accounts; ignored for other types
 
 **Business rule references:** BR-AC-01, BR-CU-02
 
@@ -1223,8 +1358,6 @@ Note: `type` and `currency_code` are immutable after creation.
 - Account must have no associated active transactions or transfers. Returns `400 VALIDATION_ERROR` with detail if violated.
 
 **Business rule references:** BR-AC-03, BR-DI-01
-
-**Sync considerations:** Sets `deleted_at`. Propagates to all clients via pull.
 
 ---
 
@@ -1272,8 +1405,7 @@ Note: `type` and `currency_code` are immutable after creation.
 ```
 
 **Validation rules:**
-- Must exist and belong to the workspace
-- Returns `404` if soft-deleted
+- Must exist and belong to the workspace. Returns `404` if soft-deleted.
 
 ---
 
@@ -1319,9 +1451,9 @@ HTTP 201.
 **Request schema:**
 ```json
 {
-  "name": "string | omit if unchanged",
-  "icon": "string (emoji) | null | omit if unchanged",
-  "is_hidden": "boolean | omit if unchanged"
+  "name": "string",
+  "icon": "string (emoji) | null",
+  "is_hidden": "boolean"
 }
 ```
 
@@ -1400,8 +1532,7 @@ HTTP 201.
 ```
 
 **Validation rules:**
-- Must exist and belong to the workspace
-- Returns `404` if soft-deleted
+- Must exist and belong to the workspace. Returns `404` if soft-deleted.
 
 ---
 
@@ -1446,8 +1577,8 @@ HTTP 201.
 **Request schema:**
 ```json
 {
-  "name": "string | omit if unchanged",
-  "logo_url": "string | null | omit if unchanged"
+  "name": "string",
+  "logo_url": "string | null"
 }
 ```
 
@@ -1498,7 +1629,7 @@ HTTP 201.
 | `category_id` | UUID | No | Filter by category |
 | `merchant_id` | UUID | No | Filter by merchant |
 | `type` | string | No | Filter by type: `INCOME` or `EXPENSE` |
-| `period` | string | No | Period preset: `today`, `this_week`, `this_month`, `last_month`, `ytd`, `this_year` |
+| `period` | string | No | Period preset. See Date Filtering. |
 | `date_from` | integer (Unix UTC) | No | Start of explicit date range (inclusive). Overrides `period`. |
 | `date_to` | integer (Unix UTC) | No | End of explicit date range (inclusive). Overrides `period`. |
 
@@ -1530,8 +1661,7 @@ HTTP 201.
 ```
 
 **Validation rules:**
-- Must exist and belong to the workspace
-- Returns `404` if soft-deleted
+- Must exist and belong to the workspace. Returns `404` if soft-deleted.
 
 ---
 
@@ -1555,7 +1685,7 @@ HTTP 201.
 }
 ```
 
-Note: `currency_code` is not accepted in the request — it is inherited from the linked Account at creation time (BR-CU-03).
+**Note:** `currency_code` is not accepted in the request — it is inherited from the linked Account at creation time (BR-CU-03).
 
 **Response schema:**
 ```json
@@ -1576,7 +1706,7 @@ HTTP 201.
 
 **Business rule references:** BR-TX-01, BR-TX-02, BR-CU-03
 
-**Sync considerations:** `currency_code` is set server-side from the linked Account and returned in the response. The client must update the locally cached `currency_code` on the record after a successful push.
+**Sync considerations:** `currency_code` is set server-side from the linked Account and returned in the response. The client must update the locally cached record's `currency_code` after a successful push.
 
 ---
 
@@ -1589,15 +1719,15 @@ HTTP 201.
 **Request schema:**
 ```json
 {
-  "category_id": "string (UUID v4) | omit if unchanged",
-  "merchant_id": "string (UUID v4) | null | omit if unchanged",
-  "amount": "integer (cents, positive) | omit if unchanged",
-  "date": "integer (Unix UTC) | omit if unchanged",
-  "notes": "string | null | omit if unchanged"
+  "category_id": "string (UUID v4)",
+  "merchant_id": "string (UUID v4) | null",
+  "amount": "integer (cents, positive)",
+  "date": "integer (Unix UTC)",
+  "notes": "string | null"
 }
 ```
 
-Note: `account_id`, `type`, and `currency_code` are immutable after creation.
+**Immutable fields:** `account_id`, `type`, `currency_code`
 
 **Response schema:**
 ```json
@@ -1625,7 +1755,7 @@ Note: `account_id`, `type`, and `currency_code` are immutable after creation.
 
 **Business rule references:** BR-DI-01
 
-**Sync considerations:** Sets `deleted_at`. Budget spending calculations exclude soft-deleted transactions automatically.
+**Sync considerations:** Budget spending calculations exclude soft-deleted transactions automatically.
 
 ---
 
@@ -1644,7 +1774,7 @@ Note: `account_id`, `type`, and `currency_code` are immutable after creation.
 | `page` | integer | No | Default: 1 |
 | `page_size` | integer | No | Default: 20, max: 100 |
 | `account_id` | UUID | No | Matches either `from_account_id` or `to_account_id` |
-| `period` | string | No | Period preset: `today`, `this_week`, `this_month`, `last_month`, `ytd`, `this_year` |
+| `period` | string | No | Period preset. See Date Filtering. |
 | `date_from` | integer (Unix UTC) | No | Start of explicit date range (inclusive). Overrides `period`. |
 | `date_to` | integer (Unix UTC) | No | End of explicit date range (inclusive). Overrides `period`. |
 
@@ -1676,8 +1806,7 @@ Note: `account_id`, `type`, and `currency_code` are immutable after creation.
 ```
 
 **Validation rules:**
-- Must exist and belong to the workspace
-- Returns `404` if soft-deleted
+- Must exist and belong to the workspace. Returns `404` if soft-deleted.
 
 ---
 
@@ -1699,7 +1828,7 @@ Note: `account_id`, `type`, and `currency_code` are immutable after creation.
 }
 ```
 
-Note: `currency_code` is inherited from the source account by the server.
+**Note:** `currency_code` is inherited from the source account by the server.
 
 **Response schema:**
 ```json
@@ -1739,7 +1868,7 @@ HTTP 201.
 
 #### GET /api/v1/budgets
 
-**Purpose:** List budgets for the workspace with optional period filtering. Includes server-computed spending totals.
+**Purpose:** List budgets with optional period filtering. Includes server-computed spending totals on each record.
 
 **Auth requirements:** VIEWER or above
 
@@ -1751,13 +1880,13 @@ HTTP 201.
 | `page_size` | integer | No | Default: 20, max: 100 |
 | `period_year` | integer | No | Filter by year (e.g. 2026). Used with `period_month`. |
 | `period_month` | integer | No | Filter by month (1–12). Used with `period_year`. |
-| `period` | string | No | Period preset as a shortcut. `this_month` maps to current `period_year` + `period_month`. Overridden by explicit `period_year`/`period_month`. |
+| `period` | string | No | Period preset shortcut. `this_month` maps to current `period_year` + `period_month`. Overridden by explicit `period_year`/`period_month`. |
 | `category_id` | UUID | No | Filter by category |
 
 **Response schema:**
 ```json
 {
-  "data": ["array of Budget objects (each includes spending object)"],
+  "data": ["array of Budget objects (each includes spending)"],
   "pagination": { "...PaginationSchema..." },
   "meta": { "...Metadata..." }
 }
@@ -1782,8 +1911,7 @@ HTTP 201.
 ```
 
 **Validation rules:**
-- Must exist and belong to the workspace
-- Returns `404` if soft-deleted
+- Must exist and belong to the workspace. Returns `404` if soft-deleted.
 
 ---
 
@@ -1801,11 +1929,11 @@ HTTP 201.
   "amount": "integer (cents, positive)",
   "period_year": "integer",
   "period_month": "integer (1–12)",
-  "carry_forward": "boolean (default: true)"
+  "carry_forward": "boolean"
 }
 ```
 
-Note: `currency_code` defaults to workspace `base_currency` (BR-CU-05) and is not accepted in the request.
+**Note:** `currency_code` defaults to workspace `base_currency` (BR-CU-05) and is not accepted in the request.
 
 **Response schema:**
 ```json
@@ -1821,7 +1949,7 @@ HTTP 201.
 - `category_id` must reference an active category
 - `amount` must be a positive integer
 - `period_month` must be 1–12
-- Unique constraint: one budget per category per period per workspace. Returns `400 VALIDATION_ERROR` if a budget already exists for that combination.
+- Unique per category per period per workspace. Returns `400 VALIDATION_ERROR` if a budget already exists for that combination.
 
 **Business rule references:** BR-BU-01, BR-BU-02, BR-BU-03, BR-BU-04, BR-CU-05
 
@@ -1836,8 +1964,8 @@ HTTP 201.
 **Request schema:**
 ```json
 {
-  "amount": "integer (cents, positive) | omit if unchanged",
-  "carry_forward": "boolean | omit if unchanged"
+  "amount": "integer (cents, positive)",
+  "carry_forward": "boolean"
 }
 ```
 
@@ -1866,7 +1994,7 @@ HTTP 201.
 
 **Business rule references:** BR-BU-02, BR-DI-01
 
-**Sync considerations:** Deleting a budget does not affect existing transactions. Auto-generated `carry_forward` budgets for future months are independent records and are unaffected.
+**Sync considerations:** Auto-generated `carry_forward` budgets for future months are independent records and are unaffected.
 
 ---
 
@@ -1874,7 +2002,7 @@ HTTP 201.
 
 #### GET /api/v1/goals
 
-**Purpose:** List all active goals in the workspace. Includes server-computed progress.
+**Purpose:** List all active goals. Includes server-computed progress on each record.
 
 **Auth requirements:** VIEWER or above
 
@@ -1888,7 +2016,7 @@ HTTP 201.
 **Response schema:**
 ```json
 {
-  "data": ["array of Goal objects (each includes progress object)"],
+  "data": ["array of Goal objects (each includes progress)"],
   "pagination": { "...PaginationSchema..." },
   "meta": { "...Metadata..." }
 }
@@ -1913,8 +2041,7 @@ HTTP 201.
 ```
 
 **Validation rules:**
-- Must exist and belong to the workspace
-- Returns `404` if soft-deleted
+- Must exist and belong to the workspace. Returns `404` if soft-deleted.
 
 ---
 
@@ -1964,14 +2091,14 @@ HTTP 201.
 **Request schema:**
 ```json
 {
-  "name": "string | omit if unchanged",
-  "target_amount": "integer (cents, positive) | omit if unchanged",
-  "target_date": "integer (Unix UTC) | null | omit if unchanged",
-  "notes": "string | null | omit if unchanged"
+  "name": "string",
+  "target_amount": "integer (cents, positive)",
+  "target_date": "integer (Unix UTC) | null",
+  "notes": "string | null"
 }
 ```
 
-Note: `currency_code` is immutable after creation.
+**Immutable fields:** `currency_code`
 
 **Response schema:**
 ```json
@@ -1998,7 +2125,7 @@ Note: `currency_code` is immutable after creation.
 
 **Business rule references:** BR-DI-01
 
-**Sync considerations:** Soft-deleting a goal does not cascade to its contributions. Contributions remain for historical accuracy but are excluded from progress calculations. See Open Questions for the cascade decision.
+**Sync considerations:** Soft-deleting a goal does not cascade to its contributions. See Open Questions for the cascade decision.
 
 ---
 
@@ -2017,7 +2144,7 @@ Note: `currency_code` is immutable after creation.
 | `page` | integer | No | Default: 1 |
 | `page_size` | integer | No | Default: 20, max: 100 |
 | `goal_id` | UUID | No | Filter by goal |
-| `period` | string | No | Period preset: `today`, `this_week`, `this_month`, `last_month`, `ytd`, `this_year` |
+| `period` | string | No | Period preset. See Date Filtering. |
 | `date_from` | integer (Unix UTC) | No | Start of explicit date range (inclusive). Overrides `period`. |
 | `date_to` | integer (Unix UTC) | No | End of explicit date range (inclusive). Overrides `period`. |
 
@@ -2049,8 +2176,7 @@ Note: `currency_code` is immutable after creation.
 ```
 
 **Validation rules:**
-- Must exist and belong to the workspace
-- Returns `404` if soft-deleted
+- Must exist and belong to the workspace. Returns `404` if soft-deleted.
 
 ---
 
@@ -2071,7 +2197,7 @@ Note: `currency_code` is immutable after creation.
 }
 ```
 
-Note: `currency_code` is inherited from the parent Goal by the server.
+**Note:** `currency_code` is inherited from the parent Goal by the server.
 
 **Response schema:**
 ```json
@@ -2089,7 +2215,7 @@ HTTP 201.
 
 **Business rule references:** BR-GL-01, BR-GL-02
 
-**Sync considerations:** `currency_code` is set server-side from the parent Goal. Client must update locally cached `currency_code` after successful push.
+**Sync considerations:** `currency_code` is set server-side from the parent Goal. The client must update the locally cached record's `currency_code` after a successful push.
 
 ---
 
@@ -2102,13 +2228,13 @@ HTTP 201.
 **Request schema:**
 ```json
 {
-  "amount": "integer (cents, positive) | omit if unchanged",
-  "date": "integer (Unix UTC) | omit if unchanged",
-  "notes": "string | null | omit if unchanged"
+  "amount": "integer (cents, positive)",
+  "date": "integer (Unix UTC)",
+  "notes": "string | null"
 }
 ```
 
-Note: `goal_id` and `currency_code` are immutable after creation.
+**Immutable fields:** `goal_id`, `currency_code`
 
 **Response schema:**
 ```json
@@ -2165,97 +2291,6 @@ Recurring transactions are introduced in Phase 2. Full spec: `specs/features/rec
 
 ---
 
-### Dashboard API
-
-#### GET /api/v1/dashboard/summary
-
-**Purpose:** Return a pre-aggregated snapshot of the workspace's financial health for display on the dashboard. Designed as a Backend For Frontend (BFF) endpoint — a single request that assembles the data the dashboard screen needs, avoiding multiple round-trips from the web client. The Android client generates equivalent data locally from Room queries and does not call this endpoint in Phase 2.
-
-**Auth requirements:** VIEWER or above. Net worth block is omitted entirely for VIEWER role.
-
-**Query parameters:**
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `period_year` | integer | No | Year for budget and spending blocks. Default: current year. |
-| `period_month` | integer | No | Month for budget and spending blocks. Default: current month. |
-
-**Response schema:**
-
-```json
-{
-  "data": {
-    "net_worth": {
-      "total_assets": "integer (cents) — sum of CHECKING + SAVINGS account balances",
-      "total_liabilities": "integer (cents) — sum of CREDIT_CARD balances",
-      "net_worth": "integer (cents) — assets minus liabilities",
-      "currency_code": "string (ISO 4217) — workspace base_currency",
-      "note": "string | null — present if multi-currency accounts exist and totals are partial"
-    },
-    "current_period": {
-      "period_year": "integer",
-      "period_month": "integer",
-      "total_income": "integer (cents)",
-      "total_expenses": "integer (cents)",
-      "net": "integer (cents) — income minus expenses"
-    },
-    "previous_period": {
-      "period_year": "integer",
-      "period_month": "integer",
-      "total_income": "integer (cents)",
-      "total_expenses": "integer (cents)",
-      "net": "integer (cents)"
-    },
-    "budget_status": [
-      {
-        "category_id": "string (UUID v4)",
-        "category_name": "string",
-        "category_icon": "string | null",
-        "planned_amount": "integer (cents)",
-        "spent_amount": "integer (cents)",
-        "remaining_amount": "integer (cents)"
-      }
-    ],
-    "top_spending_categories": [
-      {
-        "category_id": "string (UUID v4)",
-        "category_name": "string",
-        "category_icon": "string | null",
-        "spent_amount": "integer (cents)",
-        "percentage_of_total": "float (0.0–1.0)"
-      }
-    ],
-    "goal_progress": [
-      {
-        "goal_id": "string (UUID v4)",
-        "goal_name": "string",
-        "target_amount": "integer (cents)",
-        "contributed_amount": "integer (cents)",
-        "progress_percentage": "float (0.0–1.0+)",
-        "target_date": "integer (Unix UTC) | null"
-      }
-    ],
-    "recent_transactions": [
-      { "...Transaction object (last 10, sorted by date desc)..." }
-    ]
-  },
-  "meta": { "...Metadata..." }
-}
-```
-
-**Notes:**
-- `budget_status` covers all budgets for the requested period, sorted by `remaining_amount` ascending (most overspent first)
-- `top_spending_categories` is the top 5 categories by `spent_amount` for the requested period
-- `net_worth` is omitted for VIEWER role
-- `note` in `net_worth` is included when the workspace has accounts in multiple currencies — aggregation is in `base_currency` only; cross-currency accounts are excluded from the total with an explanatory note
-- This endpoint is primarily for the Phase 3 web client. The Android client computes equivalent data locally from Room.
-
-**Business rule references:** BR-AC-01, BR-AC-02, BR-BU-01, BR-BU-04, BR-GL-01
-
-**Sync considerations:** Read-only. Not part of the sync push/pull cycle.
-
----
-
 ## Security Considerations
 
 ### HTTPS Enforcement
@@ -2287,23 +2322,22 @@ The API enforces rate limits per authenticated user. When the limit is exceeded,
 
 ### Input Validation
 
-All incoming request bodies are validated against the schemas defined in this document before any database operation is performed. Validation failures return `400 VALIDATION_ERROR` with field-level detail in `error.details`. The server never trusts client-supplied `workspace_id` on feature endpoint bodies — it is always derived from the validated `X-Workspace-ID` header.
+All incoming request bodies are validated against the schemas defined in this document before any database operation is performed. Validation failures return `400 VALIDATION_ERROR` with field-level detail in `error.details`. The server never trusts client-supplied `workspace_id` in feature endpoint request bodies — it is always derived from the validated `X-Workspace-ID` header.
 
 ---
 
 ## Open Questions
 
-- **Timezone handling for period presets** — period presets (`today`, `this_week`, etc.) are currently resolved in UTC. A `timezone` field on the Workspace entity (IANA format, e.g. `America/New_York`) would allow server-side resolution in the user's local time. Deferred — revisit before Phase 3 web implementation.
-- **Text search on transactions** — should `GET /api/v1/transactions` support a `q` parameter for searching merchant name or notes? Useful for the web dashboard. Deferred to Phase 3 feature spec.
-- **Goal cascade on delete** — should soft-deleting a goal cascade a soft-delete to its GoalContributions, or leave them as orphaned records? Current behavior leaves them independent. Decision required before Phase 2 implementation.
-- **WorkspaceMember invite token storage** — the invite token should be stored in the `WorkspaceMember` record for revocation support. `data-model.md` must be updated to add `invite_token` (TEXT, nullable) and `invite_expires_at` (INTEGER, nullable) fields before Phase 2 implementation.
-- **WorkspaceMember.status field** — `status` (`PENDING`, `ACTIVE`, `REVOKED`) is defined in this document but not yet in `data-model.md` v0.5.0. Must be added before Phase 2 implementation.
+- **Timezone handling for period presets** — period presets are currently resolved in UTC. A `timezone` field on Workspace (IANA format, e.g. `America/New_York`) would allow server-side resolution in the user's local time. Deferred — revisit before Phase 3 web implementation.
+- **Text search on transactions** — should `GET /api/v1/transactions` support a `q` parameter for searching merchant name or notes? Deferred to Phase 3 feature spec.
+- **Goal cascade on delete** — should soft-deleting a goal cascade to its GoalContributions, or leave them as orphaned records? Decision required before Phase 2 implementation.
+- **WorkspaceMember data model delta** — `status` (`PENDING`, `ACTIVE`, `REVOKED`), `invite_token`, and `invite_expires_at` fields are defined in this document but not yet in `data-model.md` v0.5.0. Must be added before Phase 2 implementation.
 - **Transactional email provider** — invite emails require a provider (Resend and SendGrid are candidates). Decision at Phase 2 kickoff.
 - **Certificate pinning on Android** — implement from Phase 2 start via OkHttp, or defer? Risk: pinning requires maintenance when certs rotate. Decision at Phase 2 kickoff.
-- **Pull page size configurability** — hardcode at 500 for Phase 2 or make configurable via remote config from the start? Carried from `offline-sync.md`. Decision at Phase 2 kickoff.
-- **Dashboard endpoint iteration** — content of `GET /api/v1/dashboard/summary` should be validated against actual UI mockups once `specs/features/dashboard/spec.md` is written. The response schema may need adjustment.
-- **X-Workspace-ID in Phase 4** — confirm that passing the workspace UUID as a header is the right multi-workspace switching mechanism, or evaluate alternatives (e.g. URL prefix `/workspaces/{id}/`) at Phase 4 kickoff.
-- **Budget spending on list vs detail** — `spending` is currently included on both `GET /api/v1/budgets` (list) and `GET /api/v1/budgets/{id}` (detail). For large workspaces with many budget rows, computing spending totals for every row on a list call may be expensive. Revisit with performance benchmarks at Phase 2 implementation.
+- **Pull page size configurability** — hardcode at 500 for Phase 2, or make configurable via remote config from the start? Carried from `offline-sync.md`. Decision at Phase 2 kickoff.
+- **Dashboard summary iteration** — content of `GET /api/v1/workspaces/{workspace_id}/summary` should be validated against UI mockups once `specs/features/dashboard/spec.md` is written.
+- **X-Workspace-ID in Phase 4** — confirm header-based workspace switching as the mechanism for Phase 4, or evaluate URL prefix (`/workspaces/{id}/`) at Phase 4 kickoff.
+- **Budget spending on list endpoint** — computing `spending` for every budget row on a list call may be expensive at scale. Revisit with performance benchmarks at Phase 2 implementation.
 
 ---
 
@@ -2312,4 +2346,5 @@ All incoming request bodies are validated against the schemas defined in this do
 | Version | Date | Author | Notes |
 |---|---|---|---|
 | 0.1.0 | 2026-05-19 | Danielle Mariani | Initial draft |
-| 0.2.0 | 2026-05-20 | Danielle Mariani | Add X-Workspace-ID header and multi-workspace strategy. Clarify Supabase owns identity, FastAPI owns authorization. Remove auth endpoint stubs. Add Role Permission Matrix with VIEWER balance restriction. Add WorkspaceMember entity schema and full API (invite flow, accept, resend, role change, remove). Add WorkspaceMember to canonical sync entity order at position 2. Add Budget spending and Goal progress computed schemas. Add Dashboard BFF endpoint. Normalize all query parameters to table format. Add standardized date filtering (period presets + date range) across Transactions, Transfers, GoalContributions, Budgets. Add response envelope clarification with data/meta example. Update Security Considerations to reflect X-Workspace-ID workspace isolation. Expand Open Questions. |
+| 0.2.0 | 2026-05-20 | Danielle Mariani | Add X-Workspace-ID header. Clarify auth boundary (Supabase identity vs FastAPI authorization). Remove auth endpoint stubs. Add Role Permission Matrix. Add WorkspaceMember entity schema and full API. Add WorkspaceMember to canonical sync order. Add Budget spending and Goal progress computed schemas. Add Dashboard BFF endpoint. Normalize query parameters. Add date filtering. Add response envelope clarification. |
+| 0.3.0 | 2026-05-22 | Danielle Mariani | Add Client Source of Truth Rules section (Android, Web, Flutter/KMP, computed fields). Add PATCH null semantics to Design Conventions; remove per-endpoint "omit if unchanged" notes. Split Sync Metadata into Push Record Schema and Pull Record Schema; remove sync_status and last_synced_at from all API payloads. Move dashboard summary to GET /api/v1/workspaces/{workspace_id}/summary; remove standalone Dashboard API section. Adopt entity-keyed, outcome-keyed push response shape (accepted/conflicts/rejected per entity type). Add note on query parameters being URL-encoded. Add immutable fields callouts to PATCH endpoints. |
