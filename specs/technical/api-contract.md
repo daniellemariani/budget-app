@@ -1,6 +1,6 @@
 # API Contract — Budget App
 
-**Version:** 0.4.0
+**Version:** 0.4.1
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-19
@@ -170,7 +170,7 @@ When an endpoint or field is deprecated:
 3. The deprecated item remains functional for a minimum of one full release cycle before removal
 4. Removal is only performed in a new major version (`v2`)
 
-As of v0.4.0, no items are deprecated.
+As of v0.4.1, no items are deprecated.
 
 ### Multi-Client Considerations
 
@@ -523,13 +523,6 @@ All entity objects include Push Record or Pull Record fields in sync payloads (s
 - `email` is read-only on WorkspaceMember — invite email for PENDING members, Supabase account email for ACTIVE members; not settable via the WorkspaceMember API
 - `user_id` is null for PENDING members since no User record exists until the invite is accepted
 - VIEWER role responses omit `user_id` and `email`; `display_name` and `role` are visible to all roles
-
-**Pending data model deltas (must be added to `data-model.md` before Phase 2 implementation):**
-- `WorkspaceMember.status` — TEXT ENUM: `PENDING`, `ACTIVE`, `REVOKED`
-- `WorkspaceMember.display_name` — TEXT, nullable (denormalized from User for query convenience; kept in sync on User profile update)
-- `WorkspaceMember.email` — TEXT, nullable (invite email stored on record for PENDING member display; updated to account email on invite acceptance)
-- `WorkspaceMember.invite_token` — TEXT, nullable (signed backend JWT; stored for revocation support)
-- `WorkspaceMember.invite_expires_at` — INTEGER, nullable (Unix UTC expiry of the invite token)
 
 ### Account
 
@@ -2348,7 +2341,7 @@ All incoming request bodies are validated against the schemas defined in this do
 - **Timezone handling for period presets** — period presets are currently resolved in UTC. A `timezone` field on Workspace (IANA format, e.g. `America/New_York`) would allow server-side resolution in the user's local time. Deferred — revisit before Phase 3 web implementation.
 - **Text search on transactions** — should `GET /api/v1/transactions` support a `q` parameter for searching merchant name or notes? Deferred to Phase 3 feature spec.
 - **Goal cascade on delete** — should soft-deleting a goal cascade to its GoalContributions, or leave them as orphaned records? Decision required before Phase 2 implementation.
-- **WorkspaceMember data model delta** — `status`, `display_name`, `email`, `invite_token`, and `invite_expires_at` fields are defined in this document but not yet in `data-model.md` v0.5.0. Must be added before Phase 2 implementation. See WorkspaceMember entity schema for full field definitions.
+- **WorkspaceMember data model delta** — `status`, `display_name`, `email`, `invite_token`, and `invite_expires_at` fields have been added to `data-model.md` v0.6.0. ✓ Resolved.
 - **Transactional email provider** — invite emails require a provider (Resend and SendGrid are candidates). Decision at Phase 2 kickoff.
 - **Certificate pinning on Android** — implement from Phase 2 start via OkHttp, or defer? Risk: pinning requires maintenance when certs rotate. Decision at Phase 2 kickoff.
 - **Pull page size configurability** — hardcode at 500 for Phase 2, or make configurable via remote config from the start? Carried from `offline-sync.md`. Decision at Phase 2 kickoff.
@@ -2366,3 +2359,4 @@ All incoming request bodies are validated against the schemas defined in this do
 | 0.2.0 | 2026-05-20 | Danielle Mariani | Add X-Workspace-ID header. Clarify auth boundary (Supabase identity vs FastAPI authorization). Remove auth endpoint stubs. Add Role Permission Matrix. Add WorkspaceMember entity schema and full API. Add WorkspaceMember to canonical sync order. Add Budget spending and Goal progress computed schemas. Add Dashboard BFF endpoint. Normalize query parameters. Add date filtering. Add response envelope clarification. |
 | 0.3.0 | 2026-05-22 | Danielle Mariani | Add Client Source of Truth Rules section (Android, Web, Flutter/KMP, computed fields). Add PATCH null semantics to Design Conventions; remove per-endpoint "omit if unchanged" notes. Split Sync Metadata into Push Record Schema and Pull Record Schema; remove sync_status and last_synced_at from all API payloads. Move dashboard summary to GET /api/v1/workspaces/{workspace_id}/summary; remove standalone Dashboard API section. Adopt entity-keyed, outcome-keyed push response shape (accepted/conflicts/rejected per entity type). Add note on query parameters being URL-encoded. Add immutable fields callouts to PATCH endpoints. |
 | 0.4.0 | 2026-05-23 | Danielle Mariani | Add `initial_balance` to PATCH Account request schema with sync and validation notes. Flatten WorkspaceMember entity schema — add `display_name` and `email` as top-level fields replacing nested user object; add field notes on read-only sourcing and VIEWER visibility. Expand WorkspaceMember pending data model deltas to include `display_name`, `email`, `invite_token`, `invite_expires_at`. Update Open Questions WorkspaceMember delta entry. |
+| 0.4.1 | 2026-05-23 | Danielle Mariani | Remove resolved pending data model deltas note from WorkspaceMember entity schema — all five fields now implemented in data-model.md v0.6.0. Mark WorkspaceMember delta as resolved in Open Questions. |
