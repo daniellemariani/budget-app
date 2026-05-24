@@ -4,16 +4,16 @@
 Paste this file at the start of any new Claude or Cursor session to restore project context. Update after each significant session.
 
 ## Last Updated
-2026-05-18
+2026-05-23
 
 ## Current Status
 - PRODUCT.md — complete v1.0.0
-- SPEC.md — complete v1.0.1
+- SPEC.md — complete v1.0.2
 - ARCHITECTURE.md — complete v1.0.1
 - ROADMAP.md — complete v1.0.0
-- specs/technical/data-model.md — complete v0.5.0
-- specs/technical/offline-sync.md — complete v0.3.0
-- specs/technical/api-contract.md — next to write (depends on offline-sync.md v0.3.0)
+- specs/technical/data-model.md — complete v0.6.0
+- specs/technical/offline-sync.md — complete v0.4.0
+- specs/technical/api-contract.md — complete v0.4.1
 - Feature specs — not started
 
 ## Key Technical Decisions Made
@@ -214,7 +214,7 @@ web/src/
 - Unique constraint on (workspace_id, name) where deleted_at IS NULL for Account, Category, and Merchant
 
 ### Sync Strategy
-Full strategy defined in specs/technical/offline-sync.md v0.3.0. Key decisions:
+Full strategy defined in specs/technical/offline-sync.md v0.4.0. Key decisions:
 
 - All entities carry last_synced_at (nullable INTEGER) and sync_status (nullable TEXT ENUM) from Phase 1 to avoid future migrations
 - Both fields are null in Phase 1, active in Phase 2
@@ -223,6 +223,7 @@ Full strategy defined in specs/technical/offline-sync.md v0.3.0. Key decisions:
 - Phase 1 records with sync_status IS NULL are treated as PENDING on first Phase 2 sync
 - CONFLICT state requires explicit user resolution in the UI (Phase 2)
 - FAILED records retried with exponential backoff (Phase 2)
+- sync_status and last_synced_at are client-only fields — never included in push payloads sent to the server and never returned in pull responses from the server; the client sets these locally after applying each record
 
 **updated_at is client-authoritative:**
 - updated_at represents when the user made the change (device clock, UTC)
@@ -277,7 +278,7 @@ Full strategy defined in specs/technical/offline-sync.md v0.3.0. Key decisions:
 - Pull: 500 records per page (default)
 - Batch processing is record-level, not batch-level — a failure on one record does not affect others
 - No business sort order applied to sync payloads; dependency order only
-- Push dependency order: Workspace → Account → Category → Merchant → Goal → Transaction → Transfer → Budget → GoalContribution → RecurringTransaction
+- Push dependency order: Workspace → WorkspaceMember → Account → Category → Merchant → Goal → Transaction → Transfer → Budget → GoalContribution → RecurringTransaction
 
 **SyncOrchestrator open question:**
 - Per-entity sync status vs single workspace-level sync state — not yet decided
@@ -301,6 +302,32 @@ User → Android App or Web (Supabase SDK, gets JWT)
      → PostgreSQL on Supabase (via direct connection string)
 ```
 Note: The same JWT pattern applies in Phase 3.
+
+### API Contract Decisions
+Full contract defined in specs/technical/api-contract.md v0.4.1. Key decisions:
+
+- Supabase owns identity (register, login, token refresh, logout via SDK); FastAPI owns workspace authorization
+- X-Workspace-ID header required on all authenticated requests — workspace derived from header, not JWT claims; enables multi-workspace switching in Phase 4 without token exchange
+- Offset-based pagination for standard list endpoints; cursor-based pagination for sync pull only
+- Push payload is entity-keyed (arrays grouped by entity type); response is entity-keyed and outcome-keyed: accepted / conflicts / rejected arrays per entity type, plus a top-level summary
+- sync_status and last_synced_at are never included in push payloads or pull responses — client-only fields
+- invite_token and invite_expires_at on WorkspaceMember are server-only — never returned in any API response or sync payload
+- Computed fields (Budget spending, Goal progress) are server-calculated on feature API responses; omitted from sync payloads; Android recalculates locally from Room using the same formulas
+- Dashboard summary served by GET /api/v1/workspaces/{workspace_id}/summary (BFF endpoint for web); Android generates equivalent data locally from Room
+- PATCH semantics: omit = unchanged, value = update, null = clear (nullable fields only)
+- initial_balance is editable via PATCH Account; changes affect derived current balance and net worth immediately across all clients
+- WorkspaceMember invite flow: backend-issues signed JWT token (7-day TTL), stored for revocation; POST /workspace-members/invite → email → POST /workspace-members/accept; POST /workspace-members/accept is exempt from X-Workspace-ID validation
+
+**Role Permission Matrix (Phase 2+):**
+- VIEWER: read-only; sees account name/type/currency but not balances, credit limits, or net worth
+- MEMBER: VIEWER + create/edit/delete transactions, transfers, budgets, goals, contributions, recurring transactions
+- ADMIN: MEMBER + create/edit/delete accounts, categories, merchants, workspace settings, invite/manage members
+- OWNER: ADMIN + ownership transfer; workspace must always have exactly one active OWNER (BR-WS-05)
+
+**Client source of truth rules:**
+- Android: Room first; feature APIs secondary; computed fields recalculated locally
+- Web: feature APIs first; TanStack Query cache is ephemeral; computed fields from server response
+- Flutter/KMP (Phase 4): expected to mirror Android — local DB first, sync engine for propagation
 
 ### Testing Strategy
 | Platform | Unit                     | Integration                        | UI       |
@@ -336,12 +363,19 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - Backend hosting: Render or Railway — decision at Phase 2 kickoff
 - Web hosting: Vercel is strong candidate — decision at Phase 3 kickoff
 - Remote Config: custom Supabase config table vs third-party (e.g. Firebase Remote Config) — decision TBD post Phase 4
-- Local database sync scope: Phase 1 and 2 use full local mirroring of all user data. For long-term scaling, consider windowed sync (e.g. last 12 months on device, older data fetched on demand) to reduce initial sync time and device storage on new installs. Revisit at Phase 2 kickoff based on data volume projections and target device specs.
+- Local database sync scope: Phase 1 and 2 use full local mirroring of all user data. For long-term scaling, consider windowed sync (e.g. last 12 months on device, older data fetched on demand). Revisit at Phase 2 kickoff.
 - Pull page size: configurable from start vs hardcoded in Phase 2 — decision at Phase 2 kickoff
 - Permanently failed records (after max retries): require manual user action to reset, or auto-reset on app restart — decision at Phase 2 kickoff
 - Soft-delete purge retention threshold — define at Phase 2 kickoff (Permanent Cleanup Policy)
 - SyncOrchestrator granularity: workspace-level vs per-entity sync status — decision at Phase 2 feature spec (specs/features/sync/spec.md)
 - Conflict resolution UI: inline on record detail screen vs dedicated conflict queue screen — decision at Phase 2 feature spec (specs/features/sync/spec.md)
+- Transactional email provider for workspace invites: Resend or SendGrid — decision at Phase 2 kickoff
+- Certificate pinning on Android (OkHttp): implement from Phase 2 start or defer — decision at Phase 2 kickoff
+- X-Workspace-ID multi-workspace switching mechanism: confirm header approach or evaluate URL prefix (/workspaces/{id}/) at Phase 4 kickoff
+- Dashboard summary endpoint content: validate against UI mockups once specs/features/dashboard/spec.md is written
+- Goal cascade on delete: soft-delete goal cascades to contributions, or leaves them orphaned — decision before Phase 2 implementation
+- Timezone handling for period filter presets: currently resolved in UTC; consider Workspace.timezone field (IANA) before Phase 3 web implementation
+- Budget spending on list endpoint: computing spending totals for every budget row may be expensive at scale — revisit with benchmarks at Phase 2 implementation
 
 ## Open Questions (from PRODUCT.md)
 - Free, freemium, paid, or ad-supported for public launch?
@@ -405,11 +439,10 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - [ ] Multi-workspace UI
 
 ## Next Session
-- Write specs/technical/api-contract.md
-- Primary references: offline-sync.md v0.3.0 (sync endpoints), data-model.md v0.5.0 (entity schema), ARCHITECTURE.md (API design conventions)
-- API design conventions to follow: RESTful JSON, versioned under /api/v1/, lowercase hyphenated endpoint names, workspace_id scoped, pagination/filtering/sorting defined per feature
-- Sync endpoints needed: POST /api/v1/sync/push, GET /api/v1/sync/pull (cursor-based pagination, since watermark parameter)
-- Push endpoint: per-record upsert on id, per-record results (success/conflict/error), force flag for conflict override, server stores client updated_at as-is
-- Pull endpoint: returns records where updated_at > since, includes soft-deleted records, dependency order, cursor-based pagination
-- Auth endpoints: under /api/v1/auth/ — scope to be defined in auth feature spec, but API contract should stub them
-- All other feature endpoints (accounts, categories, transactions, etc.) to be defined per feature
+- Begin feature specs under specs/features/
+- All three technical specs are complete and locked: data-model.md v0.6.0, offline-sync.md v0.4.0, api-contract.md v0.4.1
+- Recommended feature spec order: Onboarding → Accounts → Categories → Merchants → Transactions → Transfers → Budgets → Goals → Dashboard
+- Each feature spec lives in specs/features/[feature]/ with spec.md, tasks.md, and notes.md
+- Each spec.md should include: Overview, User Stories, Screens/UI, Business Rules (feature-specific, BR-[FEATURE]-[NUMBER]), Platform sections (Android Phase 1, Web Phase 3), and Open Questions
+- Feature BRs reference global BRs by ID only — never copy global rule text
+- Phase 2 additions (sync behavior, API endpoint notes) documented in a Phase 2 section within each feature spec
