@@ -1,6 +1,6 @@
 # Navigation Spec — Budget App
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-23
@@ -96,6 +96,38 @@ Empty state anatomy: illustration placeholder + headline + subtext + primary CTA
 
 ## Android Navigation
 
+### App Launch Logic
+
+On every launch, the app reads the `onboarding_completed` flag from SharedPreferences before deciding which activity to start:
+
+```
+App Launch
+    │
+    └──► Read onboarding_completed from SharedPreferences
+              │
+              ├── false (or not set) ──► OnboardingActivity
+              │                               └──► on completion: set onboarding_completed = true
+              │                                         └──► MainActivity
+              │
+              └── true ──► MainActivity directly
+```
+
+`onboarding_completed` is a boolean stored in SharedPreferences. It defaults to false (missing key is treated as false). It is set to true only when the user completes the Name + Account Setup step — not when the feature slides are skipped.
+
+**Phase 2 note:** when Supabase Auth is introduced, the launch check gains a second condition. The full Phase 2 logic becomes:
+
+```
+App Launch
+    │
+    └──► onboarding_completed?
+              ├── false ──► OnboardingActivity
+              └── true ──► valid Supabase session?
+                                ├── yes ──► MainActivity
+                                └── no ──► Login screen
+```
+
+The SharedPreferences flag remains the Phase 1 gate. The session check is layered on top in Phase 2 without changing the flag's meaning.
+
 ### App Structure
 
 The Android app uses two distinct activity contexts:
@@ -181,7 +213,7 @@ Continuing goes to Account Setup.
 
 Prompts the user to add at least one account before proceeding. Uses the same account creation form as the Accounts feature. A "Skip for now" option is available but discouraged via copy (e.g. *"Add an account to get the most out of [App Name]"*).
 
-Completing or skipping goes to MainActivity, landing on the Dashboard.
+On completing or skipping this screen, `onboarding_completed = true` is written to SharedPreferences. This is the single point where the flag is set — not on feature slide completion or name entry. After the flag is set, the app launches MainActivity and lands on the Dashboard. OnboardingActivity is never shown again unless Clear Data is performed.
 
 ---
 
@@ -510,7 +542,7 @@ Settings is strictly personal. Workspace configuration (Categories, Merchants, C
 | Display Name | Editable field | Inline edit or modal. Updates SharedPreferences. |
 | About | Navigable row | Opens About screen (app name, brief description). |
 | Version | Static label | Shows current app version (e.g. 1.0.0). Not tappable. |
-| Clear Data | Destructive action | Confirmation dialog: *"This will permanently delete all your data. This cannot be undone."* Confirm → wipes Room DB and SharedPreferences → launches OnboardingActivity. |
+| Clear Data | Destructive action | Confirmation dialog: *"This will permanently delete all your data. This cannot be undone."* Confirm → wipes Room DB and **all** SharedPreferences (including `onboarding_completed` and `display_name`) → launches OnboardingActivity. Because `onboarding_completed` is cleared, the full onboarding flow runs again exactly as on first launch. |
 
 **Phase 2 note:** Display Name is replaced by full user account management (name, email, avatar) when Supabase Auth is introduced.
 
@@ -620,3 +652,4 @@ Settings and gear icon at the bottom of the sidebar, below the five main destina
 |---|---|---|---|
 | 0.1.0 | 2026-05-23 | Danielle Mariani | Initial draft. Covers Android onboarding flow, MainActivity shell, all five bottom nav destinations, Settings, and Web Phase 3 sidebar structure. |
 | 0.2.0 | 2026-05-25 | Danielle Mariani | Add Workspace Management screen (Categories, Merchants, Currency, Members) accessible via Manage button on Dashboard. Move Categories and Merchants from Settings to Workspace Management. Simplify Settings to personal items only. Update account sort order to Checking → Savings → Cash → Credit Card (pinned first). Add pin button pattern to Account Detail, Budget Detail, Goal Detail — global pattern documented. Add Speed Dial FAB note: type and currency code are read-only on Account Creation form when opened from Speed Dial. Add empty states to Dashboard, Accounts, Transactions (two-level: no accounts vs no transactions). Add web onboarding flow section. Add Category List and Merchant List screen definitions. Update bar chart note to "if applicable" for Budget and Goal Detail. Add quick-add inline creation as open question for Transactions feature spec. |
+| 0.3.0 | 2026-05-25 | Danielle Mariani | Add App Launch Logic section documenting onboarding_completed SharedPreferences flag, launch decision tree, and Phase 2 session check layer. Update Account Setup screen — flag is set to true only on completion of this step (not on feature slide skip). Update Clear Data behavior — wipes all SharedPreferences including onboarding_completed and display_name so onboarding runs again from scratch. |
