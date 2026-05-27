@@ -1,10 +1,10 @@
 # Budget App
 
-**Version:** 1.0.2
+**Version:** 1.0.3
 **Status:** In Progress
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-21
-**Last Updated:** 2026-05-23
+**Last Updated:** 2026-05-26
 
 ## Overview
 Budget App is a personal finance management tool that allows users to track expenses, manage monthly budgets per category, and visualize spending patterns. Built offline-first for Android, with a web dashboard and backend sync in later phases.
@@ -108,11 +108,11 @@ Core entities and relationships:
 
 - **Category** — belongs to a Workspace, user-defined, has many Transactions and Budgets, has icon (emoji)
 - **Transaction** — belongs to a Workspace, has one Category and one Account, optionally linked to a Merchant, has amount/date/type/notes
-- **Budget** — monthly limit per Category, has planned amount, has currency_code (USD by default), carry_forward (to autogenerate next month's budget)
-- **Account** — belongs to a Workspace, financial source per Transaction, has currency_code (USD by default) and credit_limit (if account is a Credit Card)
+- **Budget** — monthly limit per Category, has planned amount, has currency_code (USD by default), carry_forward (to autogenerate next month's budget), is_pinned and pinned_at for list ordering
+- **Account** — belongs to a Workspace, financial source per Transaction, has currency_code (USD by default) and credit_limit (if account is a Credit Card), is_pinned and pinned_at for list ordering
 - **Merchant** - belongs to a Workspace, user-defined, has many Transactions, has logo_url
 - **Transfer** — has origin Account and destination Account, has amount/date/notes. currency_code follows the source Account's currency_code.
-- **Goal** - has target amount/target date/currency_code (USD by default)
+- **Goal** - has target amount/target date/currency_code (USD by default), is_pinned and pinned_at for list ordering
 - **GoalContribution** — belongs to one Goal, has workspace_id/amount/date/notes. Currency inherited from parent Goal.
 - **User** — owns all data, introduced in Phase 2
 - **RecurringTransaction** — generates scheduled Transactions, linked back via recurring_id on Transaction, has amount/frequency/start date/end date (optional)/ total installments (optional)/remaining installments (optional), introduced in Phase 2
@@ -162,6 +162,12 @@ Note: Cashback and rewards are recorded as INCOME transactions in a user-defined
 - BR-TR-01: A transfer must always include both a source and destination account and must not have a category.
 - BR-TR-02: Transfers between accounts of different currencies are not supported in Phase 1. Both accounts must share the same currency_code.
 
+### Pinning
+- BR-PI-01: Pinning is supported on Account, Budget, and Goal only. Categories, Merchants, Transactions, Transfers, and GoalContributions do not support pinning.
+- BR-PI-02: Pinned items always appear at the top of their respective list screens, sorted by `pinned_at` ascending (earliest pinned appears first). Unpinned items follow in their default sort order.
+- BR-PI-03: `pinned_at` is set to the current UTC timestamp when `is_pinned` is set to true. It is cleared to null when `is_pinned` is set to false. `pinned_at` is always non-null when `is_pinned = 1` and always null when `is_pinned = 0`.
+- BR-PI-04: Pinned sort order is derived at query time from `pinned_at`. It is never stored as a separate rank or sequence field.
+
 ### Workspace
 - BR-WS-01: All financial entities belong to exactly one Workspace via workspace_id
 - BR-WS-02: The default Workspace is identified by being the first Workspace created on first launch in Phase 1, not by a hardcoded id.
@@ -207,6 +213,17 @@ Note: Cashback and rewards are recorded as INCOME transactions in a user-defined
 - Credit card cashback and rewards tracking (Phase 1 — revisit Phase 2)
 - Per-account transaction history and statement view (Phase 1)
 - Running balance per account after each transaction (Phase 1)
+
+## Changelog
+
+| Version | Date | Author | Notes |
+|---|---|---|---|
+| 0.0.1 | 2026-04-21 | Danielle Mariani | Initial draft |
+| 0.0.2 | 2026-04-23 | Danielle Mariani | Add default currency support |
+| 1.0.0 | 2026-04-28 | Danielle Mariani | Initial version |
+| 1.0.1 | 2026-05-08 | Danielle Mariani | Add WorkspaceMember to glossary, User Roles section, and Data Model Summary. Add Phase 2 role permission matrix. Add BR-WS-05. Add Workspace model note. |
+| 1.0.2 | 2026-05-23 | Danielle Mariani | Add WorkspaceMember detail to glossary. Expand User Roles section with full role permission table and API enforcement reference. Update Phase 3 web scope note. Add RecurringTransaction and GoalContribution to Data Model Summary. |
+| 1.0.3 | 2026-05-26 | Danielle Mariani | Add BR-PI pinning rules section (BR-PI-01 through BR-PI-04). Update Data Model Summary — Account, Budget, and Goal entries now reference is_pinned and pinned_at. |
 
 ## Related Documents
 

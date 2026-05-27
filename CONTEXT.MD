@@ -4,16 +4,16 @@
 Paste this file at the start of any new Claude or Cursor session to restore project context. Update after each significant session.
 
 ## Last Updated
-2026-05-25
+2026-05-27
 
 ## Current Status
 - PRODUCT.md — complete v1.0.0
-- SPEC.md — complete v1.0.2
+- SPEC.md — complete v1.0.3
 - ARCHITECTURE.md — complete v1.0.1
 - ROADMAP.md — complete v1.0.0
-- specs/technical/data-model.md — complete v0.6.0
+- specs/technical/data-model.md — complete v0.7.0
 - specs/technical/offline-sync.md — complete v0.4.0
-- specs/technical/api-contract.md — complete v0.4.1
+- specs/technical/api-contract.md — complete v0.5.0
 - specs/design/navigation.md — in progress v0.3.0 (Mermaid diagram pending; pinning updates pending across data-model, SPEC, api-contract)
 - Feature specs — not started
 
@@ -351,7 +351,7 @@ Navigation structure defined in specs/design/navigation.md v0.3.0. Key decisions
 
 **Pending items before feature specs (execute in this order):**
 1. `data-model.md` → v0.7.0: add is_pinned + pinned_at to Account, Budget, Goal; add indexes; add constraint notes; update changelog
-2. `SPEC.md` → v1.0.3: add pinning business rules (BR-PIN section); update Data Model Summary for Account, Budget, Goal; update changelog
+2. `SPEC.md` → v1.0.3: add pinning business rules (BR-PI section); update Data Model Summary for Account, Budget, Goal; update changelog
 3. `api-contract.md` → v0.5.0: add is_pinned + pinned_at to Account, Budget, Goal entity schemas; add is_pinned to PATCH request schemas; add pinned_at server-managed note; add sort order notes to list endpoints; update changelog
 4. `specs/design/navigation.md` → v0.4.0: generate and embed Mermaid diagram covering full app flow
 5. `CONTEXT.md`: update all versions, remove this pending block, update Next Session to feature specs
@@ -474,15 +474,17 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 ## Next Session
 Start a new chat. Paste CONTEXT.md to restore full context. Then execute the pending items in order:
 
-**Step 1 — data-model.md → v0.7.0**
+**Step 1 — data-model.md → v0.7.0 (COMPLETED)**
 - Add is_pinned (INTEGER, boolean, default 0) and pinned_at (INTEGER, Unix UTC, nullable) to Account, Budget, Goal entities
 - Add constraint: when is_pinned = 1, pinned_at must be non-null; when is_pinned = 0, pinned_at must be null
 - Add index on (workspace_id, is_pinned, pinned_at) for Account, Budget, and Goal
 - Add note to Design Principles — Derived Values: pinned sort order is calculated at query time
 - Add v0.7.0 changelog entry
 
-**Step 2 — SPEC.md → v1.0.3**
-- Add pinning business rules (suggest BR-PIN section or add under relevant entity sections):
+Update: This step was completed.
+
+**Step 2 — SPEC.md → v1.0.3 (COMPLETED)**
+- Add pinning business rules (suggest BR-PI section or add under relevant entity sections):
   - Pinned items appear at the top of their list, sorted by pinned_at ascending
   - Unpinned items follow in their default sort order
   - pinned_at is set to current UTC when is_pinned is set to true; cleared to null when unpinned
@@ -490,12 +492,16 @@ Start a new chat. Paste CONTEXT.md to restore full context. Then execute the pen
 - Update Data Model Summary for Account, Budget, Goal entries to mention is_pinned and pinned_at
 - Add v1.0.3 changelog entry
 
-**Step 3 — api-contract.md → v0.5.0**
+Update: This step was completed.
+
+**Step 3 — api-contract.md → v0.5.0 (Completed)**
 - Add is_pinned (boolean) and pinned_at (integer, Unix UTC, nullable) to Account, Budget, Goal entity schemas
 - Add is_pinned to PATCH Account, Budget, Goal request schemas
 - Add note: pinned_at is server-managed — never accepted in request bodies; server sets it when is_pinned toggles to true, clears it when toggled to false
 - Add sort order note to GET /api/v1/accounts, GET /api/v1/budgets, GET /api/v1/goals — pinned items first (pinned_at ascending), then default order
 - Add v0.5.0 changelog entry
+
+Update: This step was completed. Proceed with Step 4.
 
 **Step 4 — specs/design/navigation.md → v0.4.0**
 - Generate Mermaid flowchart covering: app launch decision tree, OnboardingActivity flow, MainActivity shell, all five bottom nav destinations, Workspace Management, Settings, web sidebar

@@ -1,10 +1,10 @@
 # Data Model — Budget App
 
-**Version:** 0.6.0
+**Version:** 0.7.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-30
-**Last Updated:** 2026-05-23
+**Last Updated:** 2026-05-26
 
 ## Overview
 
@@ -37,7 +37,8 @@ These principles are enforced at the database layer across all platforms and pha
 | Currency codes | ISO 4217 three-letter codes used throughout (e.g. `USD`, `EUR`, `MXN`). |
 | Primary keys | All entities use UUID v4 (TEXT) as primary key, generated client-side at creation time. Ensures global uniqueness across devices without server coordination. Supports offline-first sync introduced in Phase 2. SQLite stores UUIDs as TEXT. |
 | Sync | All entities include `last_synced_at` (nullable INTEGER timestamp) and `sync_status` (nullable ENUM: PENDING, SYNCED, FAILED, CONFLICT), present from Phase 1 to avoid future migrations. Unused until Phase 2. |
-| Derived Values | The following fields are calculated (not persisted): Account current balance, Goal progress, Budget spent amount, Spending variance, and Net worth |
+| Derived Values | The following fields are calculated (not persisted): Account current balance, Goal progress, Budget spent amount, Spending variance, Net worth, and pinned sort order (ordering of pinned items within a list is derived at query time from `pinned_at`). |
+
 ---
 
 ## Entity Reference
@@ -82,6 +83,8 @@ A financial source belonging to a Workspace (e.g. Checking, Savings, Credit Card
 | currency_code | TEXT | No | workspace base_currency | ISO 4217 code. Independent per account. (BR-CU-02) |
 | initial_balance | INTEGER | No | 0 | Opening balance in cents. Positive for assets, positive for credit card debt outstanding. |
 | credit_limit | INTEGER | Yes | null | Credit limit in cents. Applicable to `CREDIT_CARD` accounts only. Used to calculate available credit in the UI. |
+| is_pinned | INTEGER | No | 0 | Boolean flag. 1 = pinned; appears at the top of the Accounts list. (BR-PI-01) |
+| pinned_at | INTEGER | Yes | null | Unix timestamp, UTC. Set to current UTC when `is_pinned` is set to 1; cleared to null when unpinned. Used to sort pinned accounts (ascending — earliest pinned appears first). (BR-PI-02) |
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
@@ -95,6 +98,7 @@ A financial source belonging to a Workspace (e.g. Checking, Savings, Credit Card
 - `credit_limit` must be a positive integer when set (> 0)
 - Cannot be soft-deleted if it has associated transactions or transfers. User must reassign first. (BR-AC-03)
 - Credit card balance represents debt outstanding, not available funds. (BR-AC-01)
+- When `is_pinned = 1`, `pinned_at` must be non-null. When `is_pinned = 0`, `pinned_at` must be null. (BR-PI-03)
 - Unique on `(workspace_id, name)` where deleted_at IS NULL
 
 ---
@@ -231,6 +235,8 @@ An optional monthly spending plan for a Category. Non-blocking — transactions 
 | period_year | INTEGER | No | — | Calendar year of the budget period (e.g. 2026) |
 | period_month | INTEGER | No | — | Calendar month of the budget period (1–12) |
 | carry_forward | INTEGER | No | 1 | Boolean flag. 1 = auto-generate this budget for the next month when a new period begins. 0 = one-off budget for this month only. |
+| is_pinned | INTEGER | No | 0 | Boolean flag. 1 = pinned; appears at the top of the Budget list. (BR-PI-01) |
+| pinned_at | INTEGER | Yes | null | Unix timestamp, UTC. Set to current UTC when `is_pinned` is set to 1; cleared to null when unpinned. Used to sort pinned budgets (ascending — earliest pinned appears first). (BR-PI-02) |
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
@@ -245,6 +251,7 @@ An optional monthly spending plan for a Category. Non-blocking — transactions 
 - Budgets are optional — transactions can exist without a corresponding budget (BR-BU-02)
 - Budgets are non-blocking (BR-BU-03, BR-BU-04)
 - Unused budget does not roll over (BR-BU-05)
+- When `is_pinned = 1`, `pinned_at` must be non-null. When `is_pinned = 0`, `pinned_at` must be null. (BR-PIN-03)
 - When `carry_forward = 1`, the app auto-generates next month's budget row on first access of a new period. Auto-generated rows are independent — editing or deleting one does not affect other months. If a month is skipped, all missing months are generated in sequence up to the current period.
 
 ---
@@ -264,6 +271,8 @@ A specific, actionable financial target (e.g. Emergency Fund, Trip to Hawaii).
 | currency_code | TEXT | No | workspace base_currency | ISO 4217 code. |
 | target_date | INTEGER | Yes | null | Optional target completion date. Unix timestamp, UTC. |
 | notes | TEXT | Yes | null | Optional free-text note |
+| is_pinned | INTEGER | No | 0 | Boolean flag. 1 = pinned; appears at the top of the Goals list. (BR-PI-01) |
+| pinned_at | INTEGER | Yes | null | Unix timestamp, UTC. Set to current UTC when `is_pinned` is set to 1; cleared to null when unpinned. Used to sort pinned goals (ascending — earliest pinned appears first). (BR-PI-02) |
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | updated_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
 | deleted_at | INTEGER | Yes | null | Soft delete timestamp, UTC |
@@ -274,6 +283,7 @@ A specific, actionable financial target (e.g. Emergency Fund, Trip to Hawaii).
 - `target_amount` must be a positive integer (> 0)
 - `currency_code` must be a valid ISO 4217 code
 - Goal progress is calculated at query time as `SUM(GoalContribution.amount) / target_amount` (BR-GL-01)
+- When `is_pinned = 1`, `pinned_at` must be non-null. When `is_pinned = 0`, `pinned_at` must be null. (BR-PI-03)
 
 ---
 
@@ -430,9 +440,12 @@ Indexes are listed per entity for fields that appear frequently in queries, filt
 | Transaction | `(workspace_id, category_id)` | Budget spending calculations |
 | Transaction | `(workspace_id, deleted_at)` | Soft delete filter on all list queries |
 | Budget | `(workspace_id, category_id, period_year, period_month)` | Budget lookup per category per period |
+| Budget | `(workspace_id, is_pinned, pinned_at)` | Pinned budget sort order on Budget list screen |
 | Transfer | `(workspace_id, date)` | Date-range transfer queries |
 | Transfer | `(workspace_id, from_account_id)` | Account transfer history |
 | Transfer | `(workspace_id, to_account_id)` | Account transfer history |
+| Account | `(workspace_id, is_pinned, pinned_at)` | Pinned account sort order on Accounts list screen |
+| Goal | `(workspace_id, is_pinned, pinned_at)` | Pinned goal sort order on Goals list screen |
 | GoalContribution | `(workspace_id, goal_id)` | Progress calculation per goal |
 | WorkspaceMember | `(workspace_id, user_id)` | Member lookup and deduplication (Phase 2) |
 | WorkspaceMember | `(workspace_id, status)` | Member list queries filtered by status — PENDING invite management, ACTIVE member access checks (Phase 2) |
@@ -449,3 +462,4 @@ Indexes are listed per entity for fields that appear frequently in queries, filt
 | 0.4.0 | 2026-05-11 | Danielle Mariani | Add sync_status to all entities |
 | 0.5.0 | 2026-05-11 | Danielle Mariani | Add workspace_id and name constraints to Account, Category and Merchant. Add Derived Values to Design Principles. |
 | 0.6.0 | 2026-05-23 | Danielle Mariani | Expand WorkspaceMember stub with five new fields: status (PENDING/ACTIVE/REVOKED), display_name (denormalized from User), email (invite email → account email), invite_token (server-only, stored for revocation), invite_expires_at (server-only, 7-day TTL). Make user_id nullable for PENDING members. Update WorkspaceMember constraints. Add WorkspaceMember(workspace_id, status) index. |
+| 0.7.0 | 2026-05-26 | Danielle Mariani | Add is_pinned (INTEGER, default 0) and pinned_at (INTEGER, nullable) to Account, Budget, and Goal. Add BR-PI-01/02/03/04 constraint references to all three entities. Add pinned sort order note to Design Principles — Derived Values. Add (workspace_id, is_pinned, pinned_at) index for Account, Budget, and Goal. |

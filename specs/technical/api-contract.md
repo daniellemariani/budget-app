@@ -1,10 +1,10 @@
 # API Contract — Budget App
 
-**Version:** 0.4.1
+**Version:** 0.5.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-19
-**Last Updated:** 2026-05-23
+**Last Updated:** 2026-05-27
 
 ---
 
@@ -170,7 +170,7 @@ When an endpoint or field is deprecated:
 3. The deprecated item remains functional for a minimum of one full release cycle before removal
 4. Removal is only performed in a new major version (`v2`)
 
-As of v0.4.1, no items are deprecated.
+As of v0.5.0, no items are deprecated.
 
 ### Multi-Client Considerations
 
@@ -535,6 +535,8 @@ All entity objects include Push Record or Pull Record fields in sync payloads (s
   "currency_code": "string (ISO 4217)",
   "initial_balance": "integer (cents) — omitted for VIEWER role",
   "credit_limit": "integer (cents) | null — omitted for VIEWER role",
+  "is_pinned": "boolean",
+  "pinned_at": "integer (Unix UTC) | null — server-managed; non-null when is_pinned is true, null when false",
   "created_at": "integer (Unix UTC)",
   "updated_at": "integer (Unix UTC)",
   "deleted_at": "integer (Unix UTC) | null"
@@ -622,6 +624,8 @@ All entity objects include Push Record or Pull Record fields in sync payloads (s
   "period_year": "integer (e.g. 2026)",
   "period_month": "integer (1–12)",
   "carry_forward": "boolean",
+  "is_pinned": "boolean",
+  "pinned_at": "integer (Unix UTC) | null — server-managed; non-null when is_pinned is true, null when false",
   "spending": { "...BudgetSpendingSchema — included in feature API responses, omitted from sync payloads..." },
   "created_at": "integer (Unix UTC)",
   "updated_at": "integer (Unix UTC)",
@@ -640,6 +644,8 @@ All entity objects include Push Record or Pull Record fields in sync payloads (s
   "currency_code": "string (ISO 4217)",
   "target_date": "integer (Unix UTC) | null",
   "notes": "string | null",
+  "is_pinned": "boolean",
+  "pinned_at": "integer (Unix UTC) | null — server-managed; non-null when is_pinned is true, null when false",
   "progress": { "...GoalProgressSchema — included in feature API responses, omitted from sync payloads..." },
   "created_at": "integer (Unix UTC)",
   "updated_at": "integer (Unix UTC)",
@@ -1254,6 +1260,8 @@ HTTP 201.
 }
 ```
 
+**Sort order:** Pinned accounts appear first, sorted by `pinned_at` ascending (oldest pin first). Unpinned accounts grouped by type in this order: Checking → Savings → Cash → Credit Card.
+
 **Business rule references:** BR-AC-01, BR-AC-02, BR-CU-02
 
 **Sync considerations:** `initial_balance` and `credit_limit` are omitted for VIEWER role.
@@ -1331,11 +1339,14 @@ HTTP 201.
 {
   "name": "string",
   "initial_balance": "integer (cents)",
-  "credit_limit": "integer (cents) | null"
+  "credit_limit": "integer (cents) | null",
+  "is_pinned": "boolean"
 }
 ```
 
 **Immutable fields:** `type`, `currency_code`
+
+**Server-managed fields:** `pinned_at` — never accepted in the request body. The server sets `pinned_at` to the current UTC timestamp when `is_pinned` is toggled to `true`, and clears it to `null` when toggled to `false`.
 
 **Response schema:**
 ```json
@@ -1902,6 +1913,8 @@ HTTP 201.
 }
 ```
 
+**Sort order:** Pinned budgets appear first, sorted by `pinned_at` ascending (oldest pin first). Unpinned budgets follow sorted by `remaining_amount` ascending (most overspent first).
+
 **Business rule references:** BR-BU-01 through BR-BU-05
 
 ---
@@ -1975,9 +1988,12 @@ HTTP 201.
 ```json
 {
   "amount": "integer (cents, positive)",
-  "carry_forward": "boolean"
+  "carry_forward": "boolean",
+  "is_pinned": "boolean"
 }
 ```
+
+**Server-managed fields:** `pinned_at` — never accepted in the request body. The server sets `pinned_at` to the current UTC timestamp when `is_pinned` is toggled to `true`, and clears it to `null` when toggled to `false`.
 
 **Response schema:**
 ```json
@@ -2031,6 +2047,8 @@ HTTP 201.
   "meta": { "...Metadata..." }
 }
 ```
+
+**Sort order:** Pinned goals appear first, sorted by `pinned_at` ascending (oldest pin first). Unpinned goals follow in default order (by `created_at` ascending).
 
 **Business rule references:** BR-GL-01, BR-GL-02
 
@@ -2104,11 +2122,14 @@ HTTP 201.
   "name": "string",
   "target_amount": "integer (cents, positive)",
   "target_date": "integer (Unix UTC) | null",
-  "notes": "string | null"
+  "notes": "string | null",
+  "is_pinned": "boolean"
 }
 ```
 
 **Immutable fields:** `currency_code`
+
+**Server-managed fields:** `pinned_at` — never accepted in the request body. The server sets `pinned_at` to the current UTC timestamp when `is_pinned` is toggled to `true`, and clears it to `null` when toggled to `false`.
 
 **Response schema:**
 ```json
@@ -2360,3 +2381,4 @@ All incoming request bodies are validated against the schemas defined in this do
 | 0.3.0 | 2026-05-22 | Danielle Mariani | Add Client Source of Truth Rules section (Android, Web, Flutter/KMP, computed fields). Add PATCH null semantics to Design Conventions; remove per-endpoint "omit if unchanged" notes. Split Sync Metadata into Push Record Schema and Pull Record Schema; remove sync_status and last_synced_at from all API payloads. Move dashboard summary to GET /api/v1/workspaces/{workspace_id}/summary; remove standalone Dashboard API section. Adopt entity-keyed, outcome-keyed push response shape (accepted/conflicts/rejected per entity type). Add note on query parameters being URL-encoded. Add immutable fields callouts to PATCH endpoints. |
 | 0.4.0 | 2026-05-23 | Danielle Mariani | Add `initial_balance` to PATCH Account request schema with sync and validation notes. Flatten WorkspaceMember entity schema — add `display_name` and `email` as top-level fields replacing nested user object; add field notes on read-only sourcing and VIEWER visibility. Expand WorkspaceMember pending data model deltas to include `display_name`, `email`, `invite_token`, `invite_expires_at`. Update Open Questions WorkspaceMember delta entry. |
 | 0.4.1 | 2026-05-23 | Danielle Mariani | Remove resolved pending data model deltas note from WorkspaceMember entity schema — all five fields now implemented in data-model.md v0.6.0. Mark WorkspaceMember delta as resolved in Open Questions. |
+| 0.5.0 | 2026-05-27 | Danielle Mariani | Add `is_pinned` (boolean) and `pinned_at` (integer, Unix UTC, nullable) to Account, Budget, and Goal entity schemas. Add `is_pinned` to PATCH Account, Budget, and Goal request schemas. Add server-managed note for `pinned_at` on all three PATCH endpoints — never accepted in request bodies; server sets on pin, clears on unpin. Add sort order note to GET /api/v1/accounts, GET /api/v1/budgets, and GET /api/v1/goals — pinned items first (pinned_at ascending), then default order. |
