@@ -4,7 +4,7 @@
 Paste this file at the start of any new Claude or Cursor session to restore project context. Update after each significant session.
 
 ## Last Updated
-2026-05-23
+2026-05-25
 
 ## Current Status
 - PRODUCT.md — complete v1.0.0
@@ -14,6 +14,7 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 - specs/technical/data-model.md — complete v0.6.0
 - specs/technical/offline-sync.md — complete v0.4.0
 - specs/technical/api-contract.md — complete v0.4.1
+- specs/design/navigation.md — in progress v0.3.0 (Mermaid diagram pending; pinning updates pending across data-model, SPEC, api-contract)
 - Feature specs — not started
 
 ## Key Technical Decisions Made
@@ -214,7 +215,7 @@ web/src/
 - Unique constraint on (workspace_id, name) where deleted_at IS NULL for Account, Category, and Merchant
 
 ### Sync Strategy
-Full strategy defined in specs/technical/offline-sync.md v0.4.0. Key decisions:
+Full strategy defined in specs/technical/offline-sync.md v0.3.0. Key decisions:
 
 - All entities carry last_synced_at (nullable INTEGER) and sync_status (nullable TEXT ENUM) from Phase 1 to avoid future migrations
 - Both fields are null in Phase 1, active in Phase 2
@@ -223,7 +224,6 @@ Full strategy defined in specs/technical/offline-sync.md v0.4.0. Key decisions:
 - Phase 1 records with sync_status IS NULL are treated as PENDING on first Phase 2 sync
 - CONFLICT state requires explicit user resolution in the UI (Phase 2)
 - FAILED records retried with exponential backoff (Phase 2)
-- sync_status and last_synced_at are client-only fields — never included in push payloads sent to the server and never returned in pull responses from the server; the client sets these locally after applying each record
 
 **updated_at is client-authoritative:**
 - updated_at represents when the user made the change (device clock, UTC)
@@ -315,8 +315,8 @@ Full contract defined in specs/technical/api-contract.md v0.4.1. Key decisions:
 - Computed fields (Budget spending, Goal progress) are server-calculated on feature API responses; omitted from sync payloads; Android recalculates locally from Room using the same formulas
 - Dashboard summary served by GET /api/v1/workspaces/{workspace_id}/summary (BFF endpoint for web); Android generates equivalent data locally from Room
 - PATCH semantics: omit = unchanged, value = update, null = clear (nullable fields only)
-- initial_balance is editable via PATCH Account; changes affect derived current balance and net worth immediately across all clients
-- WorkspaceMember invite flow: backend-issues signed JWT token (7-day TTL), stored for revocation; POST /workspace-members/invite → email → POST /workspace-members/accept; POST /workspace-members/accept is exempt from X-Workspace-ID validation
+- initial_balance is editable via PATCH Account; changes affect derived current balance and net worth immediately
+- WorkspaceMember invite flow: backend-issued signed JWT token (7-day TTL); POST /workspace-members/invite → email → POST /workspace-members/accept; accept endpoint exempt from X-Workspace-ID validation
 
 **Role Permission Matrix (Phase 2+):**
 - VIEWER: read-only; sees account name/type/currency but not balances, credit limits, or net worth
@@ -328,6 +328,33 @@ Full contract defined in specs/technical/api-contract.md v0.4.1. Key decisions:
 - Android: Room first; feature APIs secondary; computed fields recalculated locally
 - Web: feature APIs first; TanStack Query cache is ephemeral; computed fields from server response
 - Flutter/KMP (Phase 4): expected to mirror Android — local DB first, sync engine for propagation
+
+### Navigation Decisions
+Navigation structure defined in specs/design/navigation.md v0.3.0. Key decisions:
+
+- Android uses two activity contexts: OnboardingActivity (first launch only) and MainActivity (all post-onboarding screens)
+- onboarding_completed boolean stored in SharedPreferences; read on every app launch to determine whether to show OnboardingActivity or go directly to MainActivity
+- onboarding_completed set to true only when the user completes the Account Setup step (not on feature slide skip or name entry)
+- Clear Data wipes Room DB AND all SharedPreferences (including onboarding_completed and display_name) → relaunches OnboardingActivity
+- Phase 2 launch logic adds a second gate: valid Supabase session check after onboarding_completed = true
+- Bottom nav: Dashboard | Accounts | Transactions | Budgets | Goals (5 destinations, icon + label each)
+- Header: app name left, gear icon (Settings) right — not shown during onboarding
+- Workspace Management screen accessible via Manage button on Dashboard: Categories, Merchants, Currency (read-only Phase 1), Members (Phase 2)
+- Settings is personal only: Display Name, About, Version, Clear Data
+- Speed Dial FAB on Transactions (Add Transaction, Add Transfer) and Accounts (Add Checking, Add Savings, Add Cash, Add Credit Card)
+- Standard FAB on Budgets (Add Budget) and Goals (Add Goal)
+- Pin button on Account Detail, Budget Detail, Goal Detail — toggles is_pinned; pinned items sort first in their list screens by pinned_at ascending
+- Detail screens for Account, Budget, Goal; direct edit form for Transaction, Transfer, GoalContribution, Category, Merchant
+- Display Name stored in SharedPreferences (Phase 1); used for contextual greeting on Dashboard (Good morning/afternoon/evening, [Name])
+- Web: left sidebar (collapsed = icons only, expanded = icons + labels); same 5 destinations; Settings at sidebar bottom
+- Web onboarding: feature slides → Supabase registration (Create Account) → Account Setup → Dashboard
+
+**Pending items before feature specs (execute in this order):**
+1. `data-model.md` → v0.7.0: add is_pinned + pinned_at to Account, Budget, Goal; add indexes; add constraint notes; update changelog
+2. `SPEC.md` → v1.0.3: add pinning business rules (BR-PIN section); update Data Model Summary for Account, Budget, Goal; update changelog
+3. `api-contract.md` → v0.5.0: add is_pinned + pinned_at to Account, Budget, Goal entity schemas; add is_pinned to PATCH request schemas; add pinned_at server-managed note; add sort order notes to list endpoints; update changelog
+4. `specs/design/navigation.md` → v0.4.0: generate and embed Mermaid diagram covering full app flow
+5. `CONTEXT.md`: update all versions, remove this pending block, update Next Session to feature specs
 
 ### Testing Strategy
 | Platform | Unit                     | Integration                        | UI       |
@@ -371,11 +398,17 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - Conflict resolution UI: inline on record detail screen vs dedicated conflict queue screen — decision at Phase 2 feature spec (specs/features/sync/spec.md)
 - Transactional email provider for workspace invites: Resend or SendGrid — decision at Phase 2 kickoff
 - Certificate pinning on Android (OkHttp): implement from Phase 2 start or defer — decision at Phase 2 kickoff
-- X-Workspace-ID multi-workspace switching mechanism: confirm header approach or evaluate URL prefix (/workspaces/{id}/) at Phase 4 kickoff
+- X-Workspace-ID multi-workspace switching: confirm header approach or evaluate URL prefix (/workspaces/{id}/) at Phase 4 kickoff
 - Dashboard summary endpoint content: validate against UI mockups once specs/features/dashboard/spec.md is written
-- Goal cascade on delete: soft-delete goal cascades to contributions, or leaves them orphaned — decision before Phase 2 implementation
+- Goal cascade on delete: soft-delete goal cascades to contributions or leaves them orphaned — decision before Phase 2 implementation
 - Timezone handling for period filter presets: currently resolved in UTC; consider Workspace.timezone field (IANA) before Phase 3 web implementation
 - Budget spending on list endpoint: computing spending totals for every budget row may be expensive at scale — revisit with benchmarks at Phase 2 implementation
+- Transactions month label — month picker: tapping month label to open fast-navigation picker is TBD — decision at Phase 1 implementation
+- Full-screen forms — bottom nav visibility: suppress bottom nav when form is open? Decision per feature spec
+- Account Detail — transaction history scope: all-time or rolling window — decision at Phase 1 implementation
+- App name: placeholder [App Name] used throughout — decide before Phase 1 build
+- Category/Merchant quick-add during transaction entry: inline creation without navigating to Workspace Management — decision at Transactions feature spec
+- Web onboarding full spec: sketched in specs/design/navigation.md; full spec at Phase 3 kickoff
 
 ## Open Questions (from PRODUCT.md)
 - Free, freemium, paid, or ad-supported for public launch?
@@ -439,10 +472,45 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - [ ] Multi-workspace UI
 
 ## Next Session
-- Begin feature specs under specs/features/
-- All three technical specs are complete and locked: data-model.md v0.6.0, offline-sync.md v0.4.0, api-contract.md v0.4.1
-- Recommended feature spec order: Onboarding → Accounts → Categories → Merchants → Transactions → Transfers → Budgets → Goals → Dashboard
+Start a new chat. Paste CONTEXT.md to restore full context. Then execute the pending items in order:
+
+**Step 1 — data-model.md → v0.7.0**
+- Add is_pinned (INTEGER, boolean, default 0) and pinned_at (INTEGER, Unix UTC, nullable) to Account, Budget, Goal entities
+- Add constraint: when is_pinned = 1, pinned_at must be non-null; when is_pinned = 0, pinned_at must be null
+- Add index on (workspace_id, is_pinned, pinned_at) for Account, Budget, and Goal
+- Add note to Design Principles — Derived Values: pinned sort order is calculated at query time
+- Add v0.7.0 changelog entry
+
+**Step 2 — SPEC.md → v1.0.3**
+- Add pinning business rules (suggest BR-PIN section or add under relevant entity sections):
+  - Pinned items appear at the top of their list, sorted by pinned_at ascending
+  - Unpinned items follow in their default sort order
+  - pinned_at is set to current UTC when is_pinned is set to true; cleared to null when unpinned
+  - Pinning supported on Account, Budget, Goal only
+- Update Data Model Summary for Account, Budget, Goal entries to mention is_pinned and pinned_at
+- Add v1.0.3 changelog entry
+
+**Step 3 — api-contract.md → v0.5.0**
+- Add is_pinned (boolean) and pinned_at (integer, Unix UTC, nullable) to Account, Budget, Goal entity schemas
+- Add is_pinned to PATCH Account, Budget, Goal request schemas
+- Add note: pinned_at is server-managed — never accepted in request bodies; server sets it when is_pinned toggles to true, clears it when toggled to false
+- Add sort order note to GET /api/v1/accounts, GET /api/v1/budgets, GET /api/v1/goals — pinned items first (pinned_at ascending), then default order
+- Add v0.5.0 changelog entry
+
+**Step 4 — specs/design/navigation.md → v0.4.0**
+- Generate Mermaid flowchart covering: app launch decision tree, OnboardingActivity flow, MainActivity shell, all five bottom nav destinations, Workspace Management, Settings, web sidebar
+- Add diagram as a new section in navigation.md
+- Add v0.4.0 changelog entry
+
+**Step 5 — CONTEXT.md (final)**
+- Update all document versions
+- Remove pending items block from Navigation Decisions
+- Update Next Session pointer to feature specs
+
+**After all above are done — begin feature specs:**
+- Recommended order: Onboarding → Accounts → Categories → Merchants → Transactions → Transfers → Budgets → Goals → Dashboard
 - Each feature spec lives in specs/features/[feature]/ with spec.md, tasks.md, and notes.md
-- Each spec.md should include: Overview, User Stories, Screens/UI, Business Rules (feature-specific, BR-[FEATURE]-[NUMBER]), Platform sections (Android Phase 1, Web Phase 3), and Open Questions
+- Each spec.md should include: Overview, User Stories, Screens/UI, Business Rules (BR-[FEATURE]-[NUMBER]), Platform sections (Android Phase 1, Web Phase 3), Open Questions
 - Feature BRs reference global BRs by ID only — never copy global rule text
-- Phase 2 additions (sync behavior, API endpoint notes) documented in a Phase 2 section within each feature spec
+- Phase 2 additions documented in a Phase 2 section within each feature spec
+- Reference specs/design/navigation.md for screen flows and navigation patterns
