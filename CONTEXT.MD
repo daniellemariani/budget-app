@@ -4,7 +4,7 @@
 Paste this file at the start of any new Claude or Cursor session to restore project context. Update after each significant session.
 
 ## Last Updated
-2026-05-27
+2026-05-28
 
 ## Current Status
 - PRODUCT.md — complete v1.0.0
@@ -15,6 +15,7 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 - specs/technical/offline-sync.md — complete v0.4.0
 - specs/technical/api-contract.md — complete v0.5.0
 - specs/design/navigation.md — complete v0.4.0
+- specs/design/design.md — complete v0.2.0
 - Feature specs — not started
 
 ## Key Technical Decisions Made
@@ -361,6 +362,110 @@ Navigation structure defined in specs/design/navigation.md v0.4.0. Key decisions
 - Pin button lives on Account Detail, Budget Detail, and Goal Detail screens — not on list screens, edit forms, or creation forms
 - Indexes added: (workspace_id, is_pinned, pinned_at) on Account, Budget, Goal
 
+### Design System
+Full system defined in specs/design/design.md v0.2.0. Key decisions:
+
+**Design philosophy:** Calm Financial Control — stable, trustworthy, clean, modern, professional. Avoids aggressive fintech aesthetics, trading-style dashboards, and visual clutter. Reference apps: Copilot Money, Monarch Money.
+
+**Colors — Light theme:**
+| Role | Token | Hex |
+|---|---|---|
+| Background | `color.background.primary` | `#F7F8FA` |
+| Surface / Card | `color.surface.card` | `#FFFFFF` |
+| Surface Alt | `color.surface.alt` | `#F1F3F5` |
+| Border | `color.border.default` | `#E2E8F0` |
+| Primary Text | `color.text.primary` | `#111827` |
+| Secondary Text | `color.text.secondary` | `#6B7280` |
+| Primary Accent | `color.accent.primary` | `#0D7377` |
+| On Primary Accent | `color.accent.on` | `#FFFFFF` |
+| Positive / Income | `color.semantic.success` | `#16A34A` |
+| Negative / Overspent | `color.semantic.error` | `#DC2626` |
+| Warning | `color.semantic.warning` | `#D97706` |
+| Info | `color.semantic.info` | `#2563EB` |
+
+**Colors — Dark theme:**
+| Role | Token | Hex |
+|---|---|---|
+| Background | `color.background.primary` | `#111827` |
+| Surface / Card | `color.surface.card` | `#1F2937` |
+| Surface Alt | `color.surface.alt` | `#1C2434` |
+| Border | `color.border.default` | `#374151` |
+| Primary Text | `color.text.primary` | `#F3F4F6` |
+| Secondary Text | `color.text.secondary` | `#9CA3AF` |
+| Primary Accent | `color.accent.primary` | `#2EB5AC` |
+| On Primary Accent | `color.accent.on` | `#0A2E2D` |
+| Positive / Income | `color.semantic.success` | `#4ADE80` |
+| Negative / Overspent | `color.semantic.error` | `#F87171` |
+| Warning | `color.semantic.warning` | `#FBBF24` |
+| Info | `color.semantic.info` | `#60A5FA` |
+
+**Color rules:**
+- Accent is the same teal family across modes — `#0D7377` (light) adapts to `#2EB5AC` (dark), not a different hue
+- Surface Alt dark is `#1C2434` — neutral dark, no blue cast
+- `color.accent.on` is mandatory for text/icons placed on filled accent surfaces (buttons, chips, filled progress bars)
+- Color alone must never communicate financial meaning — always pair with a secondary signal (icon, sign character, or label)
+- Dark mode follows system setting in Phase 1; manual user toggle deferred to a future phase
+
+**Typography:**
+- Primary font: Inter (bundled as downloadable font on Android via Google Fonts provider; variable font on web)
+- Fallback stack: `Inter, Roboto, system-ui, sans-serif`
+
+| Role | Size | Weight | Line Height | Usage |
+|---|---|---|---|---|
+| Display | 32sp | 600 | 1.2 | Net worth, hero financial amounts |
+| Headline | 22sp | 600 | 1.3 | Screen titles, bottom sheet titles |
+| Title | 17sp | 600 | 1.4 | Card titles, section headers |
+| Body | 15sp | 400 | 1.6 | Standard content, transaction notes |
+| Label | 13sp | 500 | 1.4 | Buttons, form labels, chips |
+| Caption | 11sp | 400 | 1.4 | Timestamps, secondary metadata |
+
+**Number formatting:**
+- Currency: `$#,##0.00` — full comma-separated in detail views; `$1.2M` abbreviation only in dashboard summary blocks at ≥ $1,000,000
+- Negative amounts: always include `−` sign (U+2212 typographic minus) in addition to color
+- Percentages: one decimal place always (e.g. `68.4%`); goal progress may exceed 100%
+- Amounts in lists right-align with consistent decimal alignment
+
+**Spacing (8dp base grid):**
+- `spacing.xxs` = 2dp (micro-gaps: icon-to-label, currency symbol to amount)
+- `spacing.xs` = 4dp
+- `spacing.sm` = 8dp
+- `spacing.md` = 16dp (standard card padding)
+- `spacing.lg` = 24dp (section separation, card gaps)
+- `spacing.xl` = 32dp
+- `spacing.xxl` = 48dp
+
+**Radius tokens:**
+- `radius.sm` = 6dp (chips, tags, badges)
+- `radius.md` = 10dp (input fields, small cards)
+- `radius.lg` = 16dp (primary cards, list containers)
+- `radius.xl` = 24dp (bottom sheets, dialogs)
+
+**Iconography:**
+- Android: Material Symbols Outlined; Web: Tabler Icons Outlined
+- Filled style only for selected/active states (e.g. active bottom nav item)
+- Sizes: 20dp inline, 24dp standalone actions and nav bar items, 16dp caption context
+- Icons must always pair with a label or accessible content description
+
+**Progress bar thresholds (budgets):**
+| Spend level | Bar color | Amount text color |
+|---|---|---|
+| < 85% of budget | `color.accent.primary` | `color.accent.primary` |
+| 85–99% of budget | `color.semantic.warning` | `color.semantic.warning` |
+| ≥ 100% (overspent) | `color.semantic.error` | `color.semantic.error` |
+
+Goal progress bars always use `color.accent.primary` — no overspent concept for goals.
+
+**Material 3 color role mapping (Android):**
+- `primary` → `color.accent.primary`
+- `onPrimary` → `color.accent.on`
+- `background` → `color.background.primary`
+- `surface` → `color.surface.card`
+- `surfaceVariant` → `color.surface.alt`
+- `onBackground` / `onSurface` → `color.text.primary`
+- `onSurfaceVariant` → `color.text.secondary`
+- `outline` → `color.border.default`
+- `error` → `color.semantic.error`
+
 ### Testing Strategy
 | Platform | Unit                     | Integration                        | UI       |
 |----------|--------------------------|------------------------------------|----------|
@@ -391,6 +496,8 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - react.mdc — globs: web/**/*.tsx
 - spec-workflow.mdc — agent-requested
 
+---
+
 ## Open Technical Decisions
 - Backend hosting: Render or Railway — decision at Phase 2 kickoff
 - Web hosting: Vercel is strong candidate — decision at Phase 3 kickoff
@@ -420,6 +527,8 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - Receipt scanning for public launch?
 - Spanish language support?
 - Product analytics strategy?
+
+---
 
 ## Phase Roadmap
 - Phase 1: Android offline, no backend, no auth
@@ -476,20 +585,36 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - [ ] Migration of Phase 1 Android features to cross-platform
 - [ ] Multi-workspace UI
 
+---
+
 ## Next Session
 Start a new chat. Paste CONTEXT.md to restore full context. Then begin feature specs.
 
 **Recommended feature spec order:**
 Onboarding → Accounts → Categories → Merchants → Transactions → Transfers → Budgets → Goals → Dashboard
 
-**Each feature spec lives in** `specs/features/[feature]/` with three files:
-- `spec.md` — Overview, User Stories, Screens/UI, Business Rules (BR-[FEATURE]-[NUMBER]), Platform sections (Android Phase 1, Web Phase 3), Open Questions
-- `tasks.md` — implementation task breakdown per phase
-- `notes.md` — decisions log and scratch notes
+**Each feature spec lives in** `specs/features/[feature]/` with four files:
+
+| File | Purpose |
+|---|---|
+| `spec.md` | What the feature does — user stories, screens/UI, business rules (BR-[FEATURE]-[NUMBER]), platform sections (Android Phase 1, Web Phase 3), open questions |
+| `design.md` | How the feature is built — data flow, use cases, ViewModel state shape, key DAO queries, Phase 2 backend additions, deviations from global architecture |
+| `tasks.md` | Implementation task breakdown per phase |
+| `notes.md` | Decisions log and scratch notes |
+
+**`design.md` sections (per feature):**
+- **Overview** — one-paragraph summary of the solution approach for this feature
+- **Data Flow** — how data moves from Room → Repository → Use Case → ViewModel → UI (and reverse for writes)
+- **Use Cases** — list of use case classes, each with its single responsibility stated
+- **ViewModel State** — the `UiState` sealed class shape (Loading, Success, Error states and their data)
+- **Key DAO Operations** — queries and mutations this feature requires, in pseudocode (not implementation)
+- **Phase 2 Additions** — any backend service consumption, endpoint calls, or sync behavior specific to this feature
+- **Deviations** — anything that intentionally differs from the global ARCHITECTURE.md pattern, with rationale
 
 **Feature spec conventions:**
 - Feature BRs use BR-[FEATURE]-[NUMBER] (e.g. BR-ON-01 for Onboarding)
 - Feature BRs reference global BRs by ID only — never copy global rule text
-- Phase 2 additions documented in a Phase 2 section within each feature spec
+- Phase 2 additions documented in a Phase 2 section within each spec.md and design.md
 - Each spec.md includes a Platforms section noting Android Phase 1 behavior and Web Phase 3 behavior
 - Screen flows and navigation patterns reference specs/design/navigation.md v0.4.0
+- Design tokens, colors, typography, and spacing reference specs/design/design.md v0.2.0
