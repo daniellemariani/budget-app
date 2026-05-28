@@ -1,10 +1,10 @@
 # Navigation Spec — Budget App
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-23
-**Last Updated:** 2026-05-25
+**Last Updated:** 2026-05-27
 
 ---
 
@@ -634,6 +634,151 @@ Settings and gear icon at the bottom of the sidebar, below the five main destina
 
 ---
 
+## Navigation Diagram
+
+Full navigation flowchart covering: app launch decision tree (Phase 1 and Phase 2), OnboardingActivity, MainActivity shell and all five bottom nav destinations, Workspace Management, Settings, and Web Phase 3 sidebar destinations.
+
+**Color key:**
+- Purple — terminal states (app launch, OnboardingActivity re-entry)
+- Green — decision points
+- Gray — screens and list views
+- Amber — creation and edit forms
+
+```mermaid
+flowchart TD
+  %% ── APP LAUNCH ──────────────────────────────────────────
+  LAUNCH([App launch]) --> OC{onboarding_completed?}
+  OC -- "false / not set" --> OA
+  OC -- "true" --> MA
+  OC -- "true (Phase 2+)" --> SES{Valid Supabase session?}
+  SES -- "yes" --> MA
+  SES -- "no" --> LGN["Login screen"]
+  LGN --> MA
+
+  %% ── ONBOARDING ACTIVITY ─────────────────────────────────
+  subgraph OA["OnboardingActivity"]
+    direction TB
+    FS["Feature slides (3 slides, skippable)"]
+    SN["Set your name"]
+    AS_OB["Account setup"]
+    FS -- "skip" --> SN
+    FS -- "get started" --> SN
+    SN --> AS_OB
+    AS_OB -- "complete or skip — sets onboarding_completed = true" --> MA
+  end
+
+  %% ── MAIN ACTIVITY ────────────────────────────────────────
+  subgraph MA["MainActivity"]
+    direction TB
+    HDR["Header — app name + gear icon"]
+    BNAV["Bottom nav — Dashboard · Accounts · Transactions · Budgets · Goals"]
+    HDR -- "gear icon" --> SET
+
+    %% ── DASHBOARD ──────────────────────────────────────────
+    subgraph DASH["Dashboard"]
+      direction TB
+      DS["Dashboard screen"]
+      DS -- "manage button" --> WM
+      DS -- "tap budget row" --> BD
+      DS -- "tap goal row" --> GD
+      DS -- "tap transaction row" --> TXE["Transaction edit form"]
+    end
+
+    %% ── WORKSPACE MANAGEMENT ───────────────────────────────
+    subgraph WM["Workspace Management"]
+      direction TB
+      WMS["Workspace management screen"]
+      CL["Category list"]
+      ML["Merchant list"]
+      CUR["Currency detail (read-only Phase 1)"]
+      MEM["Members (Phase 2)"]
+      WMS --> CL
+      WMS --> ML
+      WMS --> CUR
+      WMS --> MEM
+      CL -- "FAB" --> CCF["Category creation form"]
+      CL -- "tap row" --> CEF["Category edit form"]
+      ML -- "FAB" --> MCF["Merchant creation form"]
+      ML -- "tap row" --> MEF["Merchant edit form"]
+    end
+
+    %% ── ACCOUNTS ───────────────────────────────────────────
+    subgraph ACC["Accounts"]
+      direction TB
+      AL["Accounts list"]
+      ADE["Account detail"]
+      AL -- "speed dial FAB" --> ACF["Account creation form (type pre-filled)"]
+      AL -- "tap row" --> ADE
+      ADE -- "pin button" --> ADE
+      ADE -- "pencil icon" --> AEF["Account edit form"]
+      ADE -- "tap transaction" --> TXE2["Transaction edit form"]
+    end
+
+    %% ── TRANSACTIONS ───────────────────────────────────────
+    subgraph TRX["Transactions"]
+      direction TB
+      TL["Transactions screen (month navigator + type filters)"]
+      TL -- "speed dial: add transaction" --> TXCF["Transaction creation form"]
+      TL -- "speed dial: add transfer" --> TRCF["Transfer creation form"]
+      TL -- "tap row" --> TXEF["Transaction / transfer edit form"]
+    end
+
+    %% ── BUDGETS ────────────────────────────────────────────
+    subgraph BUD["Budgets"]
+      direction TB
+      BL["Budget list (month navigator)"]
+      BD["Budget detail"]
+      BL -- "FAB" --> BCF["Budget creation form"]
+      BL -- "tap row" --> BD
+      BD -- "pin button" --> BD
+      BD -- "pencil icon" --> BEF["Budget edit form"]
+      BD -- "tap transaction" --> TXE3["Transaction edit form"]
+    end
+
+    %% ── GOALS ──────────────────────────────────────────────
+    subgraph GOA["Goals"]
+      direction TB
+      GL["Goals list"]
+      GD["Goal detail"]
+      GL -- "FAB" --> GCF["Goal creation form"]
+      GL -- "tap row" --> GD
+      GD -- "pin button" --> GD
+      GD -- "pencil icon" --> GEF["Goal edit form"]
+      GD -- "contribute button" --> GCC["Goal contribution form"]
+      GD -- "tap contribution row" --> GCE["Goal contribution edit form"]
+    end
+
+    %% ── SETTINGS ───────────────────────────────────────────
+    subgraph SET["Settings"]
+      direction TB
+      SS["Settings screen"]
+      SS --> DNE["Display name (inline edit)"]
+      SS --> ABT["About screen"]
+      SS -- "clear data → confirm — wipes DB + SharedPrefs" --> OA2([OnboardingActivity])
+    end
+
+    BNAV --> DASH
+    BNAV --> ACC
+    BNAV --> TRX
+    BNAV --> BUD
+    BNAV --> GOA
+  end
+
+  %% ── WEB PHASE 3 (sidebar) ────────────────────────────────
+  subgraph WEB["Web — Phase 3 (sidebar navigation)"]
+    direction LR
+    WDASH["Dashboard (summary endpoint)"]
+    WACC["Accounts"]
+    WTRX["Transactions"]
+    WBUD["Budgets"]
+    WGOA["Goals"]
+    WSET["Settings"]
+    WWMS["Workspace Management"]
+  end
+```
+
+---
+
 ## Open Questions
 
 - **Transactions month label — month picker:** Tapping the month label to open a month picker for fast navigation is TBD. Decision at Phase 1 implementation.
@@ -653,3 +798,4 @@ Settings and gear icon at the bottom of the sidebar, below the five main destina
 | 0.1.0 | 2026-05-23 | Danielle Mariani | Initial draft. Covers Android onboarding flow, MainActivity shell, all five bottom nav destinations, Settings, and Web Phase 3 sidebar structure. |
 | 0.2.0 | 2026-05-25 | Danielle Mariani | Add Workspace Management screen (Categories, Merchants, Currency, Members) accessible via Manage button on Dashboard. Move Categories and Merchants from Settings to Workspace Management. Simplify Settings to personal items only. Update account sort order to Checking → Savings → Cash → Credit Card (pinned first). Add pin button pattern to Account Detail, Budget Detail, Goal Detail — global pattern documented. Add Speed Dial FAB note: type and currency code are read-only on Account Creation form when opened from Speed Dial. Add empty states to Dashboard, Accounts, Transactions (two-level: no accounts vs no transactions). Add web onboarding flow section. Add Category List and Merchant List screen definitions. Update bar chart note to "if applicable" for Budget and Goal Detail. Add quick-add inline creation as open question for Transactions feature spec. |
 | 0.3.0 | 2026-05-25 | Danielle Mariani | Add App Launch Logic section documenting onboarding_completed SharedPreferences flag, launch decision tree, and Phase 2 session check layer. Update Account Setup screen — flag is set to true only on completion of this step (not on feature slide skip). Update Clear Data behavior — wipes all SharedPreferences including onboarding_completed and display_name so onboarding runs again from scratch. |
+| 0.4.0 | 2026-05-27 | Danielle Mariani | Add Navigation Diagram section with Mermaid flowchart covering: app launch decision tree (Phase 1 + Phase 2 session check), OnboardingActivity flow, MainActivity shell and all five bottom nav destinations (Dashboard, Accounts, Transactions, Budgets, Goals), Workspace Management (Categories, Merchants, Currency, Members), Settings (Display Name, About, Clear Data), and Web Phase 3 sidebar destinations. Color key included in section header. |

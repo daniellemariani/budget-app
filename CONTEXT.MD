@@ -14,7 +14,7 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 - specs/technical/data-model.md — complete v0.7.0
 - specs/technical/offline-sync.md — complete v0.4.0
 - specs/technical/api-contract.md — complete v0.5.0
-- specs/design/navigation.md — in progress v0.3.0 (Mermaid diagram pending; pinning updates pending across data-model, SPEC, api-contract)
+- specs/design/navigation.md — complete v0.4.0
 - Feature specs — not started
 
 ## Key Technical Decisions Made
@@ -501,12 +501,14 @@ Update: This step was completed.
 - Add sort order note to GET /api/v1/accounts, GET /api/v1/budgets, GET /api/v1/goals — pinned items first (pinned_at ascending), then default order
 - Add v0.5.0 changelog entry
 
-Update: This step was completed. Proceed with Step 4.
+Update: This step was completed.
 
-**Step 4 — specs/design/navigation.md → v0.4.0**
+**Step 4 — specs/design/navigation.md → v0.4.0 (Completed)**
 - Generate Mermaid flowchart covering: app launch decision tree, OnboardingActivity flow, MainActivity shell, all five bottom nav destinations, Workspace Management, Settings, web sidebar
 - Add diagram as a new section in navigation.md
 - Add v0.4.0 changelog entry
+
+Update: This step was completed.
 
 **Step 5 — CONTEXT.md (final)**
 - Update all document versions
