@@ -1,6 +1,6 @@
 # Onboarding — Design
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
@@ -55,7 +55,7 @@ MainActivity  ◄── started via Intent on onboarding completion
 ```
 
 **Key architectural constraints:**
-- `OnboardingActivity` reads `onboarding_completed` from SharedPreferences on `onCreate`. If `true`, it immediately starts `MainActivity` and finishes itself without inflating any UI.
+- `OnboardingActivity` calls `PreferencesDataSource.isOnboardingCompleted()` on `onCreate`. If `true`, it immediately starts `MainActivity` and finishes itself without inflating any UI. No direct SharedPreferences access anywhere in the onboarding feature — all reads and writes go through `PreferencesDataSource`.
 - Database initialization (Workspace + Category seeding) runs once, on a background coroutine, before `FeatureSlidesScreen` is shown.
 - All three screens share a single `OnboardingViewModel` scoped to `OnboardingActivity`. This avoids re-running initialization logic and allows state (e.g. saved accounts count) to persist across screen transitions within the flow.
 
@@ -66,7 +66,7 @@ MainActivity  ◄── started via Intent on onboarding completion
 ```
 feature/onboarding/
 ├── ui/
-│   ├── OnboardingActivity.kt              # Activity shell, SharedPreferences gate, NavHost
+│   ├── OnboardingActivity.kt              # Activity shell, PreferencesDataSource gate, NavHost
 │   ├── OnboardingNavGraph.kt              # NavHost destinations and route constants
 │   ├── OnboardingViewModel.kt             # Single ViewModel scoped to OnboardingActivity
 │   ├── screens/
@@ -77,10 +77,12 @@ feature/onboarding/
 │       ├── OnboardingPageIndicator.kt     # 3-dot page indicator component
 │       ├── OnboardingSlide.kt             # Single slide layout composable
 │       └── AccountSavedDialog.kt          # "Add Another / Go to Home" dialog
+├── di/
+│   └── OnboardingModule.kt                # Hilt @Binds and @Provides for onboarding
 ├── domain/
 │   ├── OnboardingRepository.kt            # Interface
 │   ├── InitializeWorkspaceUseCase.kt      # Creates default Workspace + seeds Categories
-│   ├── SaveDisplayNameUseCase.kt          # Writes display_name + onboarding_completed to SharedPreferences
+│   ├── SaveDisplayNameUseCase.kt          # Delegates to PreferencesDataSource
 │   └── CreateAccountUseCase.kt            # Persists a new Account to Room
 └── data/
     ├── local/
@@ -91,7 +93,8 @@ feature/onboarding/
 **Notes:**
 - `CreateAccountUseCase` is defined in the onboarding feature for Phase 1. When the Accounts feature is implemented, a shared `CreateAccountUseCase` may be extracted to `core/domain/` if the logic is identical. This decision is deferred to the Accounts feature spec.
 - `AccountFormFields.kt` is a shared composable defined in `core/ui/` — see Shared Components section.
-- `OnboardingNavGraph.kt` defines route constants as a sealed class or object to avoid stringly-typed navigation.
+- `OnboardingNavGraph.kt` defines route constants as an object to avoid stringly-typed navigation.
+- `PreferencesDataSource` lives in `core/data/` — it is not onboarding-specific and is shared across features.
 
 ---
 
@@ -619,16 +622,22 @@ This dialog is onboarding-specific and is not a shared component.
 
 `OnboardingActivity` is responsible for:
 
-1. Reading `onboarding_completed` from SharedPreferences on `onCreate`
-2. If `true`: immediately start `MainActivity` via `Intent`, call `finish()`, return — no UI is inflated
-3. If `false`: set content to `OnboardingNavGraph`
+1. Injecting `PreferencesDataSource` via field injection
+2. Calling `preferencesDataSource.isOnboardingCompleted()` on `onCreate`
+3. If `true`: immediately start `MainActivity` via `Intent`, call `finish()`, return — no UI is inflated
+4. If `false`: set content to `OnboardingNavGraph`
+
+No direct SharedPreferences access in this class — all reads go through `PreferencesDataSource`.
 
 ```kotlin
+@AndroidEntryPoint
 class OnboardingActivity : ComponentActivity() {
+
+    @Inject lateinit var preferencesDataSource: PreferencesDataSource
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val prefs = getSharedPreferences("budget_app_prefs", MODE_PRIVATE)
-        if (prefs.getBoolean(PreferenceKeys.ONBOARDING_COMPLETED, false)) {
+        if (preferencesDataSource.isOnboardingCompleted()) {
             startActivity(Intent(this, MainActivity::class.java))
             finish()
             return
@@ -705,50 +714,46 @@ OnboardingSideEffect.NavigateToHome
 
 ## Dependency Injection
 
-All Hilt bindings for the onboarding feature are defined in `OnboardingModule`.
+Onboarding DI is split across two Hilt modules:
+
+- **`DatabaseModule`** (`core/data/di/`) — provides the Room database singleton and all DAOs. Installed in `SingletonComponent`.
+- **`OnboardingModule`** (`feature/onboarding/di/`) — provides and binds all onboarding-specific classes. Installed in `SingletonComponent`. Uses `@Binds` for interfaces (abstract module) and `@Provides` where needed.
 
 ```kotlin
+// feature/onboarding/di/OnboardingModule.kt
 @Module
 @InstallIn(SingletonComponent::class)
-object OnboardingModule {
+abstract class OnboardingModule {
 
-    @Provides
-    fun provideOnboardingLocalDataSource(
-        workspaceDao: WorkspaceDao,
-        categoryDao: CategoryDao,
-        accountDao: AccountDao
-    ): OnboardingLocalDataSource =
-        OnboardingLocalDataSource(workspaceDao, categoryDao, accountDao)
+    @Binds
+    abstract fun bindOnboardingRepository(
+        impl: OnboardingRepositoryImpl
+    ): OnboardingRepository
 
-    @Provides
-    fun provideOnboardingRepository(
-        localDataSource: OnboardingLocalDataSource
-    ): OnboardingRepository =
-        OnboardingRepositoryImpl(localDataSource)
+    companion object {
 
-    @Provides
-    fun provideInitializeWorkspaceUseCase(
-        repository: OnboardingRepository
-    ): InitializeWorkspaceUseCase =
-        InitializeWorkspaceUseCase(repository)
+        @Provides
+        fun provideOnboardingLocalDataSource(
+            workspaceDao: WorkspaceDao,
+            categoryDao: CategoryDao,
+            accountDao: AccountDao
+        ): OnboardingLocalDataSource =
+            OnboardingLocalDataSource(workspaceDao, categoryDao, accountDao)
 
-    @Provides
-    fun provideSaveDisplayNameUseCase(
-        @ApplicationContext context: Context
-    ): SaveDisplayNameUseCase =
-        SaveDisplayNameUseCase(context)
-
-    @Provides
-    fun provideCreateAccountUseCase(
-        repository: OnboardingRepository
-    ): CreateAccountUseCase =
-        CreateAccountUseCase(repository)
+        @Provides
+        fun providePreferencesDataSource(
+            @ApplicationContext context: Context
+        ): PreferencesDataSource =
+            PreferencesDataSource(context)
+    }
 }
 ```
 
-`OnboardingViewModel` is injected via `hiltViewModel()` scoped to `OnboardingActivity`. All three screens obtain the ViewModel via `hiltViewModel()` from the Activity's scope — this is what ensures a single shared instance across the navigation graph.
+Use cases (`InitializeWorkspaceUseCase`, `SaveDisplayNameUseCase`, `CreateAccountUseCase`) are annotated with `@Inject constructor(...)` and do not require explicit `@Provides` entries — Hilt resolves them automatically via constructor injection.
 
-SharedPreferences access in `SaveDisplayNameUseCase` uses `@ApplicationContext` to avoid leaking the Activity context.
+`OnboardingViewModel` is annotated with `@HiltViewModel` and injected via `hiltViewModel()` scoped to `OnboardingActivity`. All three screens obtain the ViewModel via `hiltViewModel()` from the Activity's scope — this ensures a single shared instance across the navigation graph.
+
+`SaveDisplayNameUseCase` injects `PreferencesDataSource` — not `@ApplicationContext` directly. All SharedPreferences access is centralized through `PreferencesDataSource`.
 
 ---
 
@@ -791,16 +796,19 @@ The `HorizontalPager` does not consume back events by default. A `BackHandler` i
 
 ### Atomic SharedPreferences Write
 
-`display_name` and `onboarding_completed` are written in a single `edit { }` block with `apply()` to guarantee both values are committed together before navigation proceeds. Key constants from `PreferenceKeys` are always used — no raw strings:
+`display_name` and `onboarding_completed` are written atomically through `PreferencesDataSource.saveDisplayName()`. No caller writes these keys directly — the atomic write is centralized in one place:
 
 ```kotlin
-prefs.edit {
-    putString(PreferenceKeys.DISPLAY_NAME, trimmedName)
-    putBoolean(PreferenceKeys.ONBOARDING_COMPLETED, true)
+// core/data/PreferencesDataSource.kt
+fun saveDisplayName(name: String) {
+    prefs.edit {
+        putString(PreferenceKeys.DISPLAY_NAME, name)
+        putBoolean(PreferenceKeys.ONBOARDING_COMPLETED, true)
+    }
 }
 ```
 
-Using `apply()` (async) is acceptable here because navigation is triggered after the edit block — the values will be committed before the next Activity read occurs.
+`apply()` (async write) is used internally by the Kotlin `edit { }` extension. This is acceptable because navigation is triggered after the call returns — the values will be committed before the next Activity read occurs. `SaveDisplayNameUseCase` trims the name before passing it to `PreferencesDataSource`.
 
 ---
 
@@ -839,7 +847,7 @@ Tapping Retry dispatches `OnboardingEvent.InitializationRetried`, which re-runs 
 |---|---|
 | `OnboardingViewModel` | `isDisplayNameValid` transitions (empty → 1 char → 2 chars → 30 chars → cleared). `isAccountFormValid` with all field combinations. Credit Limit field visibility logic. `SaveAccount` happy path. `SaveAccount` with duplicate name. `SaveAccount` with Room write failure. `AddAnotherAccount` clears form state. `ContinueWithName` emits correct side effect. |
 | `InitializeWorkspaceUseCase` | Creates Workspace and 20 Categories on empty DB. Is idempotent on second call (no duplicates). Returns error on DAO failure. |
-| `SaveDisplayNameUseCase` | Writes correct keys to SharedPreferences. Trims whitespace before writing. |
+| `SaveDisplayNameUseCase` | Delegates correctly to `PreferencesDataSource.saveDisplayName`. Trims whitespace before delegating. |
 | `CreateAccountUseCase` | Happy path: Account persisted to Room with correct field values. Duplicate name: throws or returns error result. Amount parsing: correct cents conversion for boundary values (0, 1, 999999999). |
 
 ### Integration Tests
@@ -847,7 +855,7 @@ Tapping Retry dispatches `OnboardingEvent.InitializationRetried`, which re-runs 
 | Scope | What to test |
 |---|---|
 | Room (in-memory DB) | `InitializeWorkspaceUseCase` creates exactly 1 Workspace and 20 Categories. Second call is a no-op. `CreateAccountUseCase` persists Account with correct `workspace_id`. Duplicate Account name is rejected by unique constraint. |
-| SharedPreferences | `SaveDisplayNameUseCase` writes both keys atomically. Values survive a simulated process restart (read back from a fresh SharedPreferences instance). |
+| SharedPreferences | `PreferencesDataSource.saveDisplayName` writes both keys atomically. `isOnboardingCompleted` returns correct value. Values survive a simulated process restart (read back from a fresh `PreferencesDataSource` instance). |
 
 ### UI Tests
 
@@ -861,3 +869,4 @@ Deferred — consistent with the global testing strategy in `ARCHITECTURE.md`. U
 |---|---|---|---|
 | 0.1.0 | 2026-05-30 | Danielle Mariani | Initial draft |
 | 0.2.0 | 2026-05-31 | Danielle Mariani | Add Constants section with `PreferenceKeys` object (`ONBOARDING_COMPLETED`, `DISPLAY_NAME`) in `core/data/`. Add `strings.xml` string resource definitions for all onboarding copy, labels, and error messages. Update SharedPreferences table in Data Models to reference `PreferenceKeys` constants. Update `OnboardingActivity` and `SaveDisplayNameUseCase` snippets to use `PreferenceKeys`. Update Atomic SharedPreferences Write note. |
+| 0.3.0 | 2026-05-31 | Danielle Mariani | Introduce `PreferencesDataSource` as centralized SharedPreferences wrapper in `core/data/`. Update Architecture Overview: all SharedPreferences access goes through `PreferencesDataSource`, no direct access anywhere. Update Component Structure: add `di/OnboardingModule.kt`, update `OnboardingActivity` and `SaveDisplayNameUseCase` comments. Update `OnboardingActivity` snippet: inject `PreferencesDataSource` via `@Inject`, call `isOnboardingCompleted()`. Rewrite Dependency Injection section: split into `DatabaseModule` and `OnboardingModule` (abstract class with `@Binds` + companion `@Provides`); use cases use constructor injection. Update Atomic SharedPreferences Write: centralized in `PreferencesDataSource.saveDisplayName`. Update Testing Strategy rows for `SaveDisplayNameUseCase` and SharedPreferences integration. |
