@@ -1,10 +1,10 @@
 # Navigation Spec — Budget App
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-23
-**Last Updated:** 2026-05-27
+**Last Updated:** 2026-05-31
 
 ---
 
@@ -106,13 +106,13 @@ App Launch
     └──► Read onboarding_completed from SharedPreferences
               │
               ├── false (or not set) ──► OnboardingActivity
-              │                               └──► on completion: set onboarding_completed = true
+              │                               └──► Set Your Name completed: set onboarding_completed = true
               │                                         └──► MainActivity
               │
               └── true ──► MainActivity directly
 ```
 
-`onboarding_completed` is a boolean stored in SharedPreferences. It defaults to false (missing key is treated as false). It is set to true only when the user completes the Name + Account Setup step — not when the feature slides are skipped.
+`onboarding_completed` is a boolean stored in SharedPreferences. It defaults to false (missing key is treated as false). It is set to true only when the user completes the Set Your Name step and taps Continue — not when the feature slides are skipped and not when Account Setup is completed or skipped.
 
 **Phase 2 note:** when Supabase Auth is introduced, the launch check gains a second condition. The full Phase 2 logic becomes:
 
@@ -213,7 +213,7 @@ Continuing goes to Account Setup.
 
 Prompts the user to add at least one account before proceeding. Uses the same account creation form as the Accounts feature. A "Skip for now" option is available but discouraged via copy (e.g. *"Add an account to get the most out of [App Name]"*).
 
-On completing or skipping this screen, `onboarding_completed = true` is written to SharedPreferences. This is the single point where the flag is set — not on feature slide completion or name entry. After the flag is set, the app launches MainActivity and lands on the Dashboard. OnboardingActivity is never shown again unless Clear Data is performed.
+On completing or skipping this screen, the app launches MainActivity and lands on the Dashboard. `onboarding_completed = true` is **not** set here — it is set earlier, when the user taps Continue on the Set Your Name screen. This means that if the app is killed on Account Setup and relaunched, the user goes directly to MainActivity (onboarding does not restart). OnboardingActivity is never shown again unless Clear Data is performed.
 
 ---
 
@@ -663,8 +663,8 @@ flowchart TD
     AS_OB["Account setup"]
     FS -- "skip" --> SN
     FS -- "get started" --> SN
-    SN --> AS_OB
-    AS_OB -- "complete or skip — sets onboarding_completed = true" --> MA
+    SN -- "continue — sets onboarding_completed = true" --> AS_OB
+    AS_OB -- "complete or skip" --> MA
   end
 
   %% ── MAIN ACTIVITY ────────────────────────────────────────
@@ -799,3 +799,4 @@ flowchart TD
 | 0.2.0 | 2026-05-25 | Danielle Mariani | Add Workspace Management screen (Categories, Merchants, Currency, Members) accessible via Manage button on Dashboard. Move Categories and Merchants from Settings to Workspace Management. Simplify Settings to personal items only. Update account sort order to Checking → Savings → Cash → Credit Card (pinned first). Add pin button pattern to Account Detail, Budget Detail, Goal Detail — global pattern documented. Add Speed Dial FAB note: type and currency code are read-only on Account Creation form when opened from Speed Dial. Add empty states to Dashboard, Accounts, Transactions (two-level: no accounts vs no transactions). Add web onboarding flow section. Add Category List and Merchant List screen definitions. Update bar chart note to "if applicable" for Budget and Goal Detail. Add quick-add inline creation as open question for Transactions feature spec. |
 | 0.3.0 | 2026-05-25 | Danielle Mariani | Add App Launch Logic section documenting onboarding_completed SharedPreferences flag, launch decision tree, and Phase 2 session check layer. Update Account Setup screen — flag is set to true only on completion of this step (not on feature slide skip). Update Clear Data behavior — wipes all SharedPreferences including onboarding_completed and display_name so onboarding runs again from scratch. |
 | 0.4.0 | 2026-05-27 | Danielle Mariani | Add Navigation Diagram section with Mermaid flowchart covering: app launch decision tree (Phase 1 + Phase 2 session check), OnboardingActivity flow, MainActivity shell and all five bottom nav destinations (Dashboard, Accounts, Transactions, Budgets, Goals), Workspace Management (Categories, Merchants, Currency, Members), Settings (Display Name, About, Clear Data), and Web Phase 3 sidebar destinations. Color key included in section header. |
+| 0.5.0 | 2026-05-31 | Danielle Mariani | Correct onboarding_completed flag timing. Flag is set when the user taps Continue on Set Your Name — not on Account Setup completion or skip. Updated: App Launch Logic prose, Account Setup screen description, and Mermaid diagram (arrow label moved from AS_OB → MA to SN → AS_OB). |

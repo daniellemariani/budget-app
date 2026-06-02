@@ -1,10 +1,10 @@
 # ARCHITECTURE.md — Budget App
 
-**Version:** 1.0.1
+**Version:** 1.0.2
 **Status:** In Progress
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-23
-**Last Updated:** 2026-05-08
+**Last Updated:** 2026-05-31
 
 ## Overview
 
@@ -376,7 +376,7 @@ Enforced at the database layer across all platforms:
 ### Workspace Isolation
 
 - `workspace_id` is a foreign key on every financial entity from Phase 1 forward (BR-WS-01).
-- A default Workspace (`id: 1, name: "default"`) is seeded on first launch and is not exposed in the UI in Phase 1 (BR-WS-02).
+- A default Workspace (UUID v4 generated client-side, name: `"Personal"`) is created on first launch and is not exposed in the UI in Phase 1 (BR-WS-02).
 - This design avoids a migration when multi-workspace support is introduced in Phase 4.
 
 ### Currency
@@ -432,5 +432,3 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 | specs/technical/data-model.md   | Full database schema                           |
 | specs/technical/api-contract.md | API endpoint definitions                       |
 | specs/technical/offline-sync.md | Sync strategy and conflict resolution          |
-
-

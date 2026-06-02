@@ -4,19 +4,22 @@
 Paste this file at the start of any new Claude or Cursor session to restore project context. Update after each significant session.
 
 ## Last Updated
-2026-05-28
+2026-05-31
 
 ## Current Status
 - PRODUCT.md — complete v1.0.0
-- SPEC.md — complete v1.0.3
-- ARCHITECTURE.md — complete v1.0.1
+- SPEC.md — complete v1.0.4
+- ARCHITECTURE.md — complete v1.0.2
 - ROADMAP.md — complete v1.0.0
 - specs/technical/data-model.md — complete v0.7.0
 - specs/technical/offline-sync.md — complete v0.4.0
 - specs/technical/api-contract.md — complete v0.5.0
-- specs/design/navigation.md — complete v0.4.0
-- specs/design/design.md — complete v0.2.0
-- Feature specs — not started
+- specs/design/navigation.md — complete v0.5.0
+- specs/design/design.md — complete (design system tokens, typography, spacing, elevation, Material 3 mapping)
+- specs/features/onboarding/requirements.md — complete v0.2.0
+- specs/features/onboarding/design.md — complete v0.3.0
+- specs/features/onboarding/tasks.md — complete v0.3.0
+- All other feature specs — not started
 
 ## Key Technical Decisions Made
 
@@ -188,6 +191,7 @@ web/src/
 ### Workspace Strategy
 - Workspace is the top-level data owner (not User)
 - Default Workspace is created on first launch with a newly generated UUID — no hardcoded id
+- Default Workspace name is `"Personal"` — set at creation time, not configurable in Phase 1
 - The default Workspace is identified by being the first Workspace created, not by its id value
 - workspace_id FK on all direct financial entities from Phase 1 — no migration needed later
 - GoalContribution carries workspace_id for query performance consistency, even though it is reachable via Goal
@@ -212,12 +216,11 @@ web/src/
 - created_at and updated_at on all entities
 - Transfers are immutable once created
 - Transfers between different currency accounts not supported in Phase 1
-- Derived values are never persisted: Account current balance, Goal progress, Budget spent amount, Spending variance, Net worth, pinned sort order — all calculated at query time
+- Derived values are never persisted: Account current balance, Goal progress, Budget spent amount, Spending variance, Net worth — all calculated at query time
 - Unique constraint on (workspace_id, name) where deleted_at IS NULL for Account, Category, and Merchant
-- Pinning fields: is_pinned (INTEGER, default 0) and pinned_at (INTEGER, nullable UTC timestamp) on Account, Budget, and Goal. pinned_at is set when is_pinned is toggled to 1, cleared to null when toggled to 0. Sort order derived at query time from pinned_at — never stored as a rank or sequence field.
 
 ### Sync Strategy
-Full strategy defined in specs/technical/offline-sync.md v0.4.0. Key decisions:
+Full strategy defined in specs/technical/offline-sync.md v0.3.0. Key decisions:
 
 - All entities carry last_synced_at (nullable INTEGER) and sync_status (nullable TEXT ENUM) from Phase 1 to avoid future migrations
 - Both fields are null in Phase 1, active in Phase 2
@@ -306,7 +309,7 @@ User → Android App or Web (Supabase SDK, gets JWT)
 Note: The same JWT pattern applies in Phase 3.
 
 ### API Contract Decisions
-Full contract defined in specs/technical/api-contract.md v0.5.0. Key decisions:
+Full contract defined in specs/technical/api-contract.md v0.4.1. Key decisions:
 
 - Supabase owns identity (register, login, token refresh, logout via SDK); FastAPI owns workspace authorization
 - X-Workspace-ID header required on all authenticated requests — workspace derived from header, not JWT claims; enables multi-workspace switching in Phase 4 without token exchange
@@ -319,8 +322,6 @@ Full contract defined in specs/technical/api-contract.md v0.5.0. Key decisions:
 - PATCH semantics: omit = unchanged, value = update, null = clear (nullable fields only)
 - initial_balance is editable via PATCH Account; changes affect derived current balance and net worth immediately
 - WorkspaceMember invite flow: backend-issued signed JWT token (7-day TTL); POST /workspace-members/invite → email → POST /workspace-members/accept; accept endpoint exempt from X-Workspace-ID validation
-- is_pinned and pinned_at on Account, Budget, Goal: is_pinned accepted in PATCH request bodies; pinned_at is server-managed — never accepted in request bodies; server sets on pin, clears on unpin
-- List sort order: pinned items first (pinned_at ascending), then default order — applied to GET /api/v1/accounts, GET /api/v1/budgets, GET /api/v1/goals
 
 **Role Permission Matrix (Phase 2+):**
 - VIEWER: read-only; sees account name/type/currency but not balances, credit limits, or net worth
@@ -334,13 +335,16 @@ Full contract defined in specs/technical/api-contract.md v0.5.0. Key decisions:
 - Flutter/KMP (Phase 4): expected to mirror Android — local DB first, sync engine for propagation
 
 ### Navigation Decisions
-Navigation structure defined in specs/design/navigation.md v0.4.0. Key decisions:
+Navigation structure defined in specs/design/navigation.md v0.5.0. Key decisions:
 
 - Android uses two activity contexts: OnboardingActivity (first launch only) and MainActivity (all post-onboarding screens)
-- onboarding_completed boolean stored in SharedPreferences; read on every app launch to determine whether to show OnboardingActivity or go directly to MainActivity
-- onboarding_completed set to true only when the user completes the Account Setup step (not on feature slide skip or name entry)
-- Clear Data wipes Room DB AND all SharedPreferences (including onboarding_completed and display_name) → relaunches OnboardingActivity
-- Phase 2 launch logic adds a second gate: valid Supabase session check after onboarding_completed = true
+- `onboarding_completed` boolean stored in SharedPreferences; read on every app launch via `PreferencesDataSource` to determine whether to show OnboardingActivity or go directly to MainActivity
+- `onboarding_completed` set to true only when the user taps Continue on the Set Your Name screen — not on feature slide skip, not on Account Setup completion or skip
+- `display_name` stored in SharedPreferences; written atomically with `onboarding_completed` on Set Your Name completion
+- All SharedPreferences access is centralized through `PreferencesDataSource` (`core/data/`) — no direct SharedPreferences reads or writes anywhere in the app
+- SharedPreferences key constants defined in `PreferenceKeys` object (`core/data/`) — no raw strings
+- Clear Data wipes Room DB AND all SharedPreferences (including `onboarding_completed` and `display_name`) → relaunches OnboardingActivity
+- Phase 2 launch logic adds a second gate: valid Supabase session check after `onboarding_completed = true`
 - Bottom nav: Dashboard | Accounts | Transactions | Budgets | Goals (5 destinations, icon + label each)
 - Header: app name left, gear icon (Settings) right — not shown during onboarding
 - Workspace Management screen accessible via Manage button on Dashboard: Categories, Merchants, Currency (read-only Phase 1), Members (Phase 2)
@@ -352,121 +356,104 @@ Navigation structure defined in specs/design/navigation.md v0.4.0. Key decisions
 - Display Name stored in SharedPreferences (Phase 1); used for contextual greeting on Dashboard (Good morning/afternoon/evening, [Name])
 - Web: left sidebar (collapsed = icons only, expanded = icons + labels); same 5 destinations; Settings at sidebar bottom
 - Web onboarding: feature slides → Supabase registration (Create Account) → Account Setup → Dashboard
-- Full navigation flowchart (Mermaid) embedded in navigation.md v0.4.0 covering: app launch decision tree, OnboardingActivity, MainActivity shell, all five bottom nav destinations, Workspace Management, Settings, Web Phase 3 sidebar
 
-### Pinning Decisions
-- Pinning supported on Account, Budget, and Goal only (BR-PI-01)
-- Pinned items always appear at the top of their respective list screens, sorted by pinned_at ascending — earliest pinned first (BR-PI-02)
-- pinned_at is set to current UTC when is_pinned is toggled to true; cleared to null when toggled to false (BR-PI-03)
-- Pinned sort order derived at query time from pinned_at — never stored as a separate rank or sequence field (BR-PI-04)
-- Pin button lives on Account Detail, Budget Detail, and Goal Detail screens — not on list screens, edit forms, or creation forms
-- Indexes added: (workspace_id, is_pinned, pinned_at) on Account, Budget, Goal
+### Feature Spec Conventions
 
-### Design System
-Full system defined in specs/design/design.md v0.2.0. Key decisions:
+Each feature spec lives in `specs/features/[feature]/` and always contains exactly four files:
 
-**Design philosophy:** Calm Financial Control — stable, trustworthy, clean, modern, professional. Avoids aggressive fintech aesthetics, trading-style dashboards, and visual clutter. Reference apps: Copilot Money, Monarch Money.
+```
+specs/features/[feature]/
+├── requirements.md   # Functional requirements, business rules, ACs, error handling
+├── design.md         # Technical solution design (components, ViewModel, DI, tokens)
+└── tasks.md          # Implementation task breakdown with file paths and dependencies
+```
 
-**Colors — Light theme:**
-| Role | Token | Hex |
-|---|---|---|
-| Background | `color.background.primary` | `#F7F8FA` |
-| Surface / Card | `color.surface.card` | `#FFFFFF` |
-| Surface Alt | `color.surface.alt` | `#F1F3F5` |
-| Border | `color.border.default` | `#E2E8F0` |
-| Primary Text | `color.text.primary` | `#111827` |
-| Secondary Text | `color.text.secondary` | `#6B7280` |
-| Primary Accent | `color.accent.primary` | `#0D7377` |
-| On Primary Accent | `color.accent.on` | `#FFFFFF` |
-| Positive / Income | `color.semantic.success` | `#16A34A` |
-| Negative / Overspent | `color.semantic.error` | `#DC2626` |
-| Warning | `color.semantic.warning` | `#D97706` |
-| Info | `color.semantic.info` | `#2563EB` |
+**`requirements.md` structure:**
+```
+# [Feature] — Requirements
+## Introduction
+## Scope Boundaries (In Scope / Out of Scope)
+## Requirements (RQ-[FEAT]-XX)
+## Non-Functional Requirements
+## Screens & UI
+    ### [Screen Name]
+        #### Fields & Layout
+        #### Validation
+        #### States
+        #### UX Copy
+## Edge Cases
+## Business Rules (BR-[FEAT]-XX)
+## Acceptance Criteria
+    ### Happy Path
+    ### Edge Cases
+## Error Handling
+## Dependencies
+## Changelog
+```
 
-**Colors — Dark theme:**
-| Role | Token | Hex |
-|---|---|---|
-| Background | `color.background.primary` | `#111827` |
-| Surface / Card | `color.surface.card` | `#1F2937` |
-| Surface Alt | `color.surface.alt` | `#1C2434` |
-| Border | `color.border.default` | `#374151` |
-| Primary Text | `color.text.primary` | `#F3F4F6` |
-| Secondary Text | `color.text.secondary` | `#9CA3AF` |
-| Primary Accent | `color.accent.primary` | `#2EB5AC` |
-| On Primary Accent | `color.accent.on` | `#0A2E2D` |
-| Positive / Income | `color.semantic.success` | `#4ADE80` |
-| Negative / Overspent | `color.semantic.error` | `#F87171` |
-| Warning | `color.semantic.warning` | `#FBBF24` |
-| Info | `color.semantic.info` | `#60A5FA` |
+**`design.md` structure:**
+```
+# [Feature] — Design
+## Overview
+## Related Documents
+## Architecture Overview
+## Component Structure
+## Constants
+    ### SharedPreferences Keys (if applicable)
+    ### String Resources
+## Data Models
+## Screen Specifications
+    ### [Screen Name]
+        #### Composable Breakdown
+        #### ViewModel — State & Events
+        #### UI States
+        #### Design Tokens Applied
+## Shared Components
+## Navigation Implementation
+## Dependency Injection
+## Key Implementation Notes
+## Error Handling
+## Testing Strategy
+## Changelog
+```
 
-**Color rules:**
-- Accent is the same teal family across modes — `#0D7377` (light) adapts to `#2EB5AC` (dark), not a different hue
-- Surface Alt dark is `#1C2434` — neutral dark, no blue cast
-- `color.accent.on` is mandatory for text/icons placed on filled accent surfaces (buttons, chips, filled progress bars)
-- Color alone must never communicate financial meaning — always pair with a secondary signal (icon, sign character, or label)
-- Dark mode follows system setting in Phase 1; manual user toggle deferred to a future phase
+**`tasks.md` structure:**
+```
+# [Feature] — Tasks
+## Overview (group execution order table)
+## Task Summary (all tasks: ID, title, group, phase, effort, status)
+## Task Format
+## Group 0 — Project Foundation (first feature only)
+## Group N — [Group Name]
+    TSK-[FEAT]-XX — [Title]
+    - Effort: S / M / L
+    - Phase: N
+    - Group: [name]
+    - Requirements: RQ-[FEAT]-XX
+    - Acceptance Criteria: AC-[FEAT]-XX
+    - Status: Not Started / Done
+    - Depends on: TSK-[FEAT]-XX / None
+    - Creates: [full file paths]
+    - Details: [implementation guidance]
+## Changelog
+```
 
-**Typography:**
-- Primary font: Inter (bundled as downloadable font on Android via Google Fonts provider; variable font on web)
-- Fallback stack: `Inter, Roboto, system-ui, sans-serif`
+**ID conventions:**
+- Requirements: `RQ-[FEAT]-NN` (e.g. `RQ-ON-01`)
+- Business Rules: `BR-[FEAT]-NN` (e.g. `BR-ON-01`)
+- Acceptance Criteria: `AC-[FEAT]-NN` (e.g. `AC-ON-01`) — no HP/EC suffix in ID; Happy Path and Edge Cases are section headers only
+- Tasks: `TSK-[FEAT]-NN` (e.g. `TSK-ON-01`)
+- IDs are never renumbered once assigned
 
-| Role | Size | Weight | Line Height | Usage |
-|---|---|---|---|---|
-| Display | 32sp | 600 | 1.2 | Net worth, hero financial amounts |
-| Headline | 22sp | 600 | 1.3 | Screen titles, bottom sheet titles |
-| Title | 17sp | 600 | 1.4 | Card titles, section headers |
-| Body | 15sp | 400 | 1.6 | Standard content, transaction notes |
-| Label | 13sp | 500 | 1.4 | Buttons, form labels, chips |
-| Caption | 11sp | 400 | 1.4 | Timestamps, secondary metadata |
-
-**Number formatting:**
-- Currency: `$#,##0.00` — full comma-separated in detail views; `$1.2M` abbreviation only in dashboard summary blocks at ≥ $1,000,000
-- Negative amounts: always include `−` sign (U+2212 typographic minus) in addition to color
-- Percentages: one decimal place always (e.g. `68.4%`); goal progress may exceed 100%
-- Amounts in lists right-align with consistent decimal alignment
-
-**Spacing (8dp base grid):**
-- `spacing.xxs` = 2dp (micro-gaps: icon-to-label, currency symbol to amount)
-- `spacing.xs` = 4dp
-- `spacing.sm` = 8dp
-- `spacing.md` = 16dp (standard card padding)
-- `spacing.lg` = 24dp (section separation, card gaps)
-- `spacing.xl` = 32dp
-- `spacing.xxl` = 48dp
-
-**Radius tokens:**
-- `radius.sm` = 6dp (chips, tags, badges)
-- `radius.md` = 10dp (input fields, small cards)
-- `radius.lg` = 16dp (primary cards, list containers)
-- `radius.xl` = 24dp (bottom sheets, dialogs)
-
-**Iconography:**
-- Android: Material Symbols Outlined; Web: Tabler Icons Outlined
-- Filled style only for selected/active states (e.g. active bottom nav item)
-- Sizes: 20dp inline, 24dp standalone actions and nav bar items, 16dp caption context
-- Icons must always pair with a label or accessible content description
-
-**Progress bar thresholds (budgets):**
-| Spend level | Bar color | Amount text color |
-|---|---|---|
-| < 85% of budget | `color.accent.primary` | `color.accent.primary` |
-| 85–99% of budget | `color.semantic.warning` | `color.semantic.warning` |
-| ≥ 100% (overspent) | `color.semantic.error` | `color.semantic.error` |
-
-Goal progress bars always use `color.accent.primary` — no overspent concept for goals.
-
-**Material 3 color role mapping (Android):**
-- `primary` → `color.accent.primary`
-- `onPrimary` → `color.accent.on`
-- `background` → `color.background.primary`
-- `surface` → `color.surface.card`
-- `surfaceVariant` → `color.surface.alt`
-- `onBackground` / `onSurface` → `color.text.primary`
-- `onSurfaceVariant` → `color.text.secondary`
-- `outline` → `color.border.default`
-- `error` → `color.semantic.error`
-
-### Testing Strategy
+**Key principles:**
+- `requirements.md` defines *what* — platform-agnostic functional behavior
+- `design.md` defines *how* — Android implementation, file paths, ViewModel/DI wiring, design tokens applied per screen
+- `tasks.md` defines *when and what to create* — granular, ordered, with exact file paths to prevent AI improvisation
+- Feature BRs reference global BRs by ID only — never copy global rule text
+- All UX copy lives in `strings.xml` — no hardcoded strings in Kotlin files
+- All SharedPreferences keys defined as constants in `PreferenceKeys` (`core/data/`)
+- All SharedPreferences access goes through `PreferencesDataSource` (`core/data/`)
+- Design tokens in `design.md` reference `specs/design/design.md` — never duplicated inline
 | Platform | Unit                     | Integration                        | UI       |
 |----------|--------------------------|------------------------------------|----------|
 | Android  | JUnit + Hilt test runner | Room in-memory database tests      | Deferred |
@@ -495,8 +482,6 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - fastapi.mdc — globs: backend/**/*.py
 - react.mdc — globs: web/**/*.tsx
 - spec-workflow.mdc — agent-requested
-
----
 
 ## Open Technical Decisions
 - Backend hosting: Render or Railway — decision at Phase 2 kickoff
@@ -527,8 +512,6 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - Receipt scanning for public launch?
 - Spanish language support?
 - Product analytics strategy?
-
----
 
 ## Phase Roadmap
 - Phase 1: Android offline, no backend, no auth
@@ -585,36 +568,21 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - [ ] Migration of Phase 1 Android features to cross-platform
 - [ ] Multi-workspace UI
 
----
-
 ## Next Session
-Start a new chat. Paste CONTEXT.md to restore full context. Then begin feature specs.
+Start a new chat. Paste CONTEXT.md to restore full context.
 
-**Recommended feature spec order:**
-Onboarding → Accounts → Categories → Merchants → Transactions → Transfers → Budgets → Goals → Dashboard
+**Current state:** Onboarding feature spec is complete (requirements.md v0.2.0, design.md v0.3.0, tasks.md v0.3.0). All cross-file updates from the onboarding session are applied (navigation.md v0.5.0, SPEC.md v1.0.4, ARCHITECTURE.md v1.0.2).
 
-**Each feature spec lives in** `specs/features/[feature]/` with four files:
+**Immediate next steps:**
+1. Begin Accounts feature spec — recommended next feature after Onboarding
+   - `specs/features/accounts/requirements.md`
+   - `specs/features/accounts/design.md`
+   - `specs/features/accounts/tasks.md`
 
-| File | Purpose |
-|---|---|
-| `spec.md` | What the feature does — user stories, screens/UI, business rules (BR-[FEATURE]-[NUMBER]), platform sections (Android Phase 1, Web Phase 3), open questions |
-| `design.md` | How the feature is built — data flow, use cases, ViewModel state shape, key DAO queries, Phase 2 backend additions, deviations from global architecture |
-| `tasks.md` | Implementation task breakdown per phase |
-| `notes.md` | Decisions log and scratch notes |
+**Remaining feature spec order:**
+- Accounts → Categories → Merchants → Transactions → Transfers → Budgets → Goals → Dashboard
 
-**`design.md` sections (per feature):**
-- **Overview** — one-paragraph summary of the solution approach for this feature
-- **Data Flow** — how data moves from Room → Repository → Use Case → ViewModel → UI (and reverse for writes)
-- **Use Cases** — list of use case classes, each with its single responsibility stated
-- **ViewModel State** — the `UiState` sealed class shape (Loading, Success, Error states and their data)
-- **Key DAO Operations** — queries and mutations this feature requires, in pseudocode (not implementation)
-- **Phase 2 Additions** — any backend service consumption, endpoint calls, or sync behavior specific to this feature
-- **Deviations** — anything that intentionally differs from the global ARCHITECTURE.md pattern, with rationale
-
-**Feature spec conventions:**
-- Feature BRs use BR-[FEATURE]-[NUMBER] (e.g. BR-ON-01 for Onboarding)
-- Feature BRs reference global BRs by ID only — never copy global rule text
-- Phase 2 additions documented in a Phase 2 section within each spec.md and design.md
-- Each spec.md includes a Platforms section noting Android Phase 1 behavior and Web Phase 3 behavior
-- Screen flows and navigation patterns reference specs/design/navigation.md v0.4.0
-- Design tokens, colors, typography, and spacing reference specs/design/design.md v0.2.0
+**When ready to code:**
+- All onboarding tasks are defined in `specs/features/onboarding/tasks.md` v0.3.0
+- Start from TSK-ON-01 (Project Foundation) and work through groups in order
+- App ID `com.dmariani.budgetapp` is temporary — decide final identifier before Phase 1 build

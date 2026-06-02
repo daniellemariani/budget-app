@@ -1,10 +1,10 @@
 # Budget App
 
-**Version:** 1.0.3
+**Version:** 1.0.4
 **Status:** In Progress
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-21
-**Last Updated:** 2026-05-26
+**Last Updated:** 2026-05-31
 
 ## Overview
 Budget App is a personal finance management tool that allows users to track expenses, manage monthly budgets per category, and visualize spending patterns. Built offline-first for Android, with a web dashboard and backend sync in later phases.
@@ -24,7 +24,7 @@ Budget App is a personal finance management tool that allows users to track expe
 | Transfer | A movement of money between two financial accounts. Not counted as income or expense. (e.g. Credit Card payment, savings deposit) |
 | GoalContribution | A manual payment toward a Goal, tracked independently from monthly budgets |
 | RecurringTransaction | A transaction template that generates scheduled payments automatically (e.g. Netflix, Mortgage, Gym membership) |
-| Workspace | Top-level container for all financial data representing a household or individual. Users belong to one or more workspaces. All financial data belongs to a Workspace, not a User directly. A default workspace is created transparently on first launch in Phase 1. |
+| Workspace | Top-level container for all financial data representing a household or individual. Users belong to one or more workspaces. All financial data belongs to a Workspace, not a User directly. A default workspace named "Personal" is created transparently on first launch in Phase 1. |
 | Currency | A system of money (banknotes and coins) issued by a government and used as a legal tender and medium of exchange within a specific country |
 | BaseCurrency | The primary currency of a Workspace, set during onboarding and used as the default for all accounts and aggregated display totals. Stored as an ISO 4217 code (e.g. USD, EUR, MXN) |
 | CurrencyCode | An ISO 4217 three-letter currency identifier assigned to each Account and inherited by its Transactions. Determines how amounts are displayed and grouped in reports. (e.g. USD, EUR, MXN, GBP) |
@@ -71,22 +71,22 @@ Each household or individual is represented as a Workspace. Users can belong to 
 ### Phase 1 — Android Offline
 | Feature | Spec | Description | Status |
 |---|---|---|---|
-| Onboarding | specs/features/onboarding/spec.md | Getting started, initial setup | Not Started |
-| Transactions | specs/features/transactions/spec.md | Add, edit, delete income and expenses | Not Started |
-| Categories | specs/features/categories/spec.md | Organize transactions by type | Not Started |
-| Accounts | specs/features/accounts/spec.md | Financial accounts (checking, savings, credit card, cash) | Not Started |
-| Merchants | specs/features/merchants/spec.md | Add, edit, delete merchants | Not Started |
-| Transfers | specs/features/transfers/spec.md | Move money between accounts | Not Started |
-| Budgets | specs/features/budgets/spec.md | Monthly spending limits per category | Not Started |
-| Goals | specs/features/goals/spec.md | Savings targets with progress tracking | Not Started |
-| Dashboard | specs/features/dashboard/spec.md | Summary view of financial health. Displays: net worth (assets, liabilities, net); current vs previous month income and expense comparison; budget status for current period sorted by most overspent; top 5 spending categories; active goal progress; last 10 transactions. Android generates this data locally from Room. Web uses GET /api/v1/workspaces/{workspace_id}/summary. | Not Started |
+| Onboarding | specs/features/onboarding/requirements.md | Getting started, initial setup | Not Started |
+| Transactions | specs/features/transactions/requirements.md | Add, edit, delete income and expenses | Not Started |
+| Categories | specs/features/categories/requirements.md | Organize transactions by type | Not Started |
+| Accounts | specs/features/accounts/requirements.md | Financial accounts (checking, savings, credit card, cash) | Not Started |
+| Merchants | specs/features/merchants/requirements.md | Add, edit, delete merchants | Not Started |
+| Transfers | specs/features/transfers/requirements.md | Move money between accounts | Not Started |
+| Budgets | specs/features/budgets/requirements.md | Monthly spending limits per category | Not Started |
+| Goals | specs/features/goals/requirements.md | Savings targets with progress tracking | Not Started |
+| Dashboard | specs/features/dashboard/requirements.md | Summary view of financial health. Displays: net worth (assets, liabilities, net); current vs previous month income and expense comparison; budget status for current period sorted by most overspent; top 5 spending categories; active goal progress; last 10 transactions. Android generates this data locally from Room. Web uses GET /api/v1/workspaces/{workspace_id}/summary. | Not Started |
 
 ### Phase 2 — Backend + Sync
 | Feature | Spec | Description | Status |
 |---|---|---|---|
-| Recurring Transactions | specs/features/recurring-transactions/spec.md | Scheduled and installment-based transactions | Not Started |
-| Auth | specs/features/auth/spec.md | User registration, login, session management | Not Started |
-| Sync | specs/features/sync/spec.md | Data sync between device and backend | Not Started |
+| Recurring Transactions | specs/features/recurring-transactions/requirements.md | Scheduled and installment-based transactions | Not Started |
+| Auth | specs/features/auth/requirements.md | User registration, login, session management | Not Started |
+| Sync | specs/features/sync/requirements.md | Data sync between device and backend | Not Started |
 
 ### Phase 3 — Web
 
@@ -95,8 +95,8 @@ Web-specific behavior is documented in a "Web" section within each existing feat
 
 | Feature | Spec | Description | Status |
 |---|---|---|---|
-| Web Dashboard | specs/features/web-dashboard/spec.md | Full-featured web interface for budget management and reporting, connects to Phase 2 backend | Not Started |
-| Reports | specs/features/reports/spec.md | Monthly income vs expense charts and spending analysis | Not Started |
+| Web Dashboard | specs/features/web-dashboard/requirements.md | Full-featured web interface for budget management and reporting, connects to Phase 2 backend | Not Started |
+| Reports | specs/features/reports/requirements.md | Monthly income vs expense charts and spending analysis | Not Started |
 
 ### Phase 4 — Cross-Platform Mobile
 | Feature | Spec | Description | Status |
@@ -116,7 +116,7 @@ Core entities and relationships:
 - **GoalContribution** — belongs to one Goal, has workspace_id/amount/date/notes. Currency inherited from parent Goal.
 - **User** — owns all data, introduced in Phase 2
 - **RecurringTransaction** — generates scheduled Transactions, linked back via recurring_id on Transaction, has amount/frequency/start date/end date (optional)/ total installments (optional)/remaining installments (optional), introduced in Phase 2
-- **Workspace** — top-level container for all financial data. A default workspace is created on first launch and used transparently in Phase 1. Has base_currency (USD by default). Multi-workspace support introduced in Phase 4.
+- **Workspace** — top-level container for all financial data. A default workspace named "Personal" is created on first launch and used transparently in Phase 1. Has base_currency (USD by default). Multi-workspace support introduced in Phase 4.
 - **WorkspaceMember** — junction entity linking a User to a Workspace with an assigned role (OWNER, ADMIN, MEMBER, VIEWER) and status (PENDING, ACTIVE, REVOKED). Tracks invite lifecycle (invited_at, joined_at, invite expiry). Introduced in Phase 2.
 
 Full schema: specs/technical/data-model.md
@@ -224,6 +224,7 @@ Note: Cashback and rewards are recorded as INCOME transactions in a user-defined
 | 1.0.1 | 2026-05-08 | Danielle Mariani | Add WorkspaceMember to glossary, User Roles section, and Data Model Summary. Add Phase 2 role permission matrix. Add BR-WS-05. Add Workspace model note. |
 | 1.0.2 | 2026-05-23 | Danielle Mariani | Add WorkspaceMember detail to glossary. Expand User Roles section with full role permission table and API enforcement reference. Update Phase 3 web scope note. Add RecurringTransaction and GoalContribution to Data Model Summary. |
 | 1.0.3 | 2026-05-26 | Danielle Mariani | Add BR-PI pinning rules section (BR-PI-01 through BR-PI-04). Update Data Model Summary — Account, Budget, and Goal entries now reference is_pinned and pinned_at. |
+| 1.0.4 | 2026-05-31 | Danielle Mariani | Name default Workspace "Personal" in Glossary and Data Model Summary. Update Onboarding feature index path from spec.md to requirements.md to reflect new feature spec file structure. |
 
 ## Related Documents
 
