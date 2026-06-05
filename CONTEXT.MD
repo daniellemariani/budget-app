@@ -1,4 +1,4 @@
-# AI Session Context — Budget App
+# AI Session Context — Capital (Budget App)
 
 ## Purpose
 Paste this file at the start of any new Claude or Cursor session to restore project context. Update after each significant session.
@@ -23,7 +23,17 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 
 ## Key Technical Decisions Made
 
-### Stack
+### App Identity
+- **App name:** Capital
+- **Tagline:** TBD
+- **Package name (temporary):** `com.dmariani.capital` — suitable for personal/development use
+- **Package name (public launch):** to be decided when registering a legal entity or brand. Recommended pattern: `com.getcapital.app` or `io.capital.app` — check domain and Play Store availability before Phase 1 public release
+- **App ID** must match package name. Changing it after Play Store publication loses all reviews and install history — treat as permanent once published
+- **Immediate actions before TSK-ON-01:**
+  - Update `applicationId` in `app/build.gradle.kts` from `com.dmariani.budgetapp` to `com.dmariani.capital`
+  - Update root package name across all Kotlin files accordingly
+  - Replace all `[App Name]` placeholders in `strings.xml` with `Capital`
+  - Replace all `[App Name]` references in `requirements.md` with `Capital`
 - Android: Kotlin + Jetpack Compose + Hilt + Room + Coroutines/Flow
 - Android Network (Phase 2): Retrofit + Kotlin Serialization + OkHttp Interceptor
 - Android Image (Phase 2): Coil (`coil-compose`)
@@ -56,7 +66,7 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 
 ### Android Package Structure
 ```
-android/src/main/java/com/budgetapp/
+android/src/main/java/com/dmariani/capital/
 ├── core/
 │   ├── ui/                            # shared Composables, theme, design tokens
 │   ├── domain/                        # domain entities: Transaction.kt, Budget.kt, Account.kt, ...
@@ -503,7 +513,8 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - Transactions month label — month picker: tapping month label to open fast-navigation picker is TBD — decision at Phase 1 implementation
 - Full-screen forms — bottom nav visibility: suppress bottom nav when form is open? Decision per feature spec
 - Account Detail — transaction history scope: all-time or rolling window — decision at Phase 1 implementation
-- App name: placeholder [App Name] used throughout — decide before Phase 1 build
+- App name: **Capital** ✓ decided
+- Package name: `com.dmariani.capital` for Phase 1 development. Final public package name to be decided before Play Store submission — requires legal entity or brand registration (see App Identity section)
 - Category/Merchant quick-add during transaction entry: inline creation without navigating to Workspace Management — decision at Transactions feature spec
 - Web onboarding full spec: sketched in specs/design/navigation.md; full spec at Phase 3 kickoff
 
@@ -571,18 +582,22 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 ## Next Session
 Start a new chat. Paste CONTEXT.md to restore full context.
 
-**Current state:** Onboarding feature spec is complete (requirements.md v0.2.0, design.md v0.3.0, tasks.md v0.3.0). All cross-file updates from the onboarding session are applied (navigation.md v0.5.0, SPEC.md v1.0.4, ARCHITECTURE.md v1.0.2).
+**Current state:** Onboarding feature spec is complete (requirements.md v0.2.0, design.md v0.3.0, tasks.md v0.3.0). All cross-file updates applied. App name decided: **Capital**.
 
-**Immediate next steps:**
-1. Begin Accounts feature spec — recommended next feature after Onboarding
-   - `specs/features/accounts/requirements.md`
-   - `specs/features/accounts/design.md`
-   - `specs/features/accounts/tasks.md`
+**Immediate actions before coding (do in this order):**
+1. Replace all `[App Name]` occurrences in `requirements.md` with `Capital`
+2. Replace all `[App Name]` occurrences in `strings.xml` (once created in TSK-ON-14) with `Capital`
+3. Confirm final package name before TSK-ON-01 — `com.dmariani.capital` for now, or check domain/Play Store availability for a public-facing ID
 
-**Remaining feature spec order:**
-- Accounts → Categories → Merchants → Transactions → Transfers → Budgets → Goals → Dashboard
+**Next spec to write:** Accounts feature
+- `specs/features/accounts/requirements.md`
+- `specs/features/accounts/design.md`
+- `specs/features/accounts/tasks.md`
 
 **When ready to code:**
-- All onboarding tasks are defined in `specs/features/onboarding/tasks.md` v0.3.0
-- Start from TSK-ON-01 (Project Foundation) and work through groups in order
-- App ID `com.dmariani.budgetapp` is temporary — decide final identifier before Phase 1 build
+- All onboarding tasks defined in `specs/features/onboarding/tasks.md` v0.3.0
+- Start from TSK-ON-01 and work through groups in order
+- Use `com.dmariani.capital` as package name in TSK-ON-01
+
+**Remaining feature spec order:**
+Accounts → Categories → Merchants → Transactions → Transfers → Budgets → Goals → Dashboard
