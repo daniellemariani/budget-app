@@ -1,10 +1,10 @@
-# Navigation Spec — Budget App
+# Navigation Spec — Capital
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-23
-**Last Updated:** 2026-05-31
+**Last Updated:** 2026-06-05
 
 ---
 
@@ -33,6 +33,8 @@ This document is intentionally lightweight — it captures structure and flow, n
 | specs/features/goals/spec.md | Goals feature detail |
 | specs/features/categories/spec.md | Categories feature detail |
 | specs/features/merchants/spec.md | Merchants feature detail |
+| specs/features/home/requirements.md | Home shell — MainActivity, header, bottom nav, back navigation |
+| specs/features/settings/requirements.md | Settings feature detail |
 
 ---
 
@@ -92,6 +94,24 @@ Every list screen defines two layers of empty state where applicable:
 
 Empty state anatomy: illustration placeholder + headline + subtext + primary CTA button.
 
+### Sub-Screen Navigation
+
+Sub-screens (detail screens, creation forms, and edit forms) are displayed full-screen within `MainActivity`. This is a global pattern that applies across all features.
+
+**What changes on a sub-screen:**
+- The shell `Header` (app wordmark + gear icon) is not visible
+- The `BottomNavigationBar` is not visible
+- A feature-owned top bar replaces the shell header, containing:
+  - **Back arrow** (left) — tapping it triggers the same behavior as the system back button or back gesture, popping the current screen from the stack
+  - **Screen title** (left of center or centered) — typically the entity name (e.g. "Chase Checking") or a generic label (e.g. "Add Account"). Defined per feature spec.
+  - **Optional actions** (right) — feature-specific (e.g. pencil/edit icon, pin icon). Defined per feature spec.
+
+**What stays the same:**
+- System back button and back gesture behavior — each back press pops one screen until the tab root is reached, at which point tab-level back navigation applies (see `specs/features/home/requirements.md` — RQ-HM-15 and RQ-HM-16)
+- Theme (light/dark) and design system tokens
+
+**Applies to:** Accounts, Budgets, Goals, Transactions, Transfers, Workspace Management, Settings, and any future feature that introduces sub-screens. The exact top bar composition (title, actions) is defined per feature spec.
+
 ---
 
 ## Android Navigation
@@ -137,14 +157,14 @@ OnboardingActivity         — shown only on first launch; no bottom nav, no hea
     └── OnboardingNavHost  — manages onboarding screen flow
 
 MainActivity               — all post-onboarding screens
-    ├── Header             — [App Name] left, gear icon (Settings) right
+    ├── Header             — App wordmark (logo) left, gear icon (Settings) right
     ├── BottomNavigationBar — 5 destinations, each with icon + label
     └── MainNavHost        — manages all feature screen flows
 ```
 
 **OnboardingActivity** is a self-contained navigation scope. It is dismissed permanently after onboarding completes. It does not share the navigation back stack with MainActivity.
 
-**MainActivity** is the persistent shell for all post-onboarding screens. The header and bottom nav bar are always visible in MainActivity. Exception: screens that open full-screen forms (e.g. Add Transaction, Add Account) may suppress the bottom nav — TBD per feature spec.
+**MainActivity** is the persistent shell for all post-onboarding screens. The header and bottom nav bar are visible on all tab root screens. Sub-screens (detail screens, creation forms, edit forms) are displayed full-screen — the shell header and bottom nav are not present. See Sub-Screen Navigation pattern above.
 
 ### Header
 
@@ -152,7 +172,7 @@ Present on all MainActivity screens. Not present during onboarding.
 
 | Element | Position | Behavior |
 |---|---|---|
-| App name ([App Name]) | Left | Static label — no action |
+| App wordmark (logo) | Left | Static image asset — no tap action |
 | Gear icon | Right | Navigates to Settings screen |
 
 ### Bottom Navigation Bar
@@ -670,7 +690,7 @@ flowchart TD
   %% ── MAIN ACTIVITY ────────────────────────────────────────
   subgraph MA["MainActivity"]
     direction TB
-    HDR["Header — app name + gear icon"]
+    HDR["Header — app wordmark (logo) + gear icon"]
     BNAV["Bottom nav — Dashboard · Accounts · Transactions · Budgets · Goals"]
     HDR -- "gear icon" --> SET
 
@@ -782,10 +802,10 @@ flowchart TD
 ## Open Questions
 
 - **Transactions month label — month picker:** Tapping the month label to open a month picker for fast navigation is TBD. Decision at Phase 1 implementation.
-- **Full-screen forms — bottom nav visibility:** Should the bottom nav be suppressed when a creation/edit form is open full-screen? Common Android pattern is to suppress it. Decision per feature spec.
+- **Full-screen forms — bottom nav visibility:** ~~Resolved~~ — Sub-screens are full-screen; shell header and bottom nav are not present. Global pattern documented in Sub-Screen Navigation section above.
 - **Account Detail — transaction history scope:** All-time or limited to a rolling window (e.g. last 12 months)? Decision at Phase 1 implementation.
 - **Web onboarding — full spec:** First-time web user experience is sketched here. Full spec defined at Phase 3 kickoff.
-- **App name:** Placeholder `[App Name]` used throughout. To be decided before Phase 1 build.
+- **App name:** ~~Resolved~~ — App name is **Capital**. See SPEC.md for the canonical app name definition. Generic references (`[App Name]`) remain in this document as structural placeholders.
 - **Category and Merchant quick-add during transaction entry:** Users should be able to create a new category or merchant inline while filling out the Transaction Creation form, without navigating to Workspace Management. Implementation detail deferred to the Transactions feature spec.
 - **Pinning on Categories and Merchants:** Pinning is currently only supported on Accounts, Budgets, and Goals. If pinning is added to Categories or Merchants in a future iteration, the Workspace Management screen sort order would need to be updated accordingly.
 
@@ -800,3 +820,4 @@ flowchart TD
 | 0.3.0 | 2026-05-25 | Danielle Mariani | Add App Launch Logic section documenting onboarding_completed SharedPreferences flag, launch decision tree, and Phase 2 session check layer. Update Account Setup screen — flag is set to true only on completion of this step (not on feature slide skip). Update Clear Data behavior — wipes all SharedPreferences including onboarding_completed and display_name so onboarding runs again from scratch. |
 | 0.4.0 | 2026-05-27 | Danielle Mariani | Add Navigation Diagram section with Mermaid flowchart covering: app launch decision tree (Phase 1 + Phase 2 session check), OnboardingActivity flow, MainActivity shell and all five bottom nav destinations (Dashboard, Accounts, Transactions, Budgets, Goals), Workspace Management (Categories, Merchants, Currency, Members), Settings (Display Name, About, Clear Data), and Web Phase 3 sidebar destinations. Color key included in section header. |
 | 0.5.0 | 2026-05-31 | Danielle Mariani | Correct onboarding_completed flag timing. Flag is set when the user taps Continue on Set Your Name — not on Account Setup completion or skip. Updated: App Launch Logic prose, Account Setup screen description, and Mermaid diagram (arrow label moved from AS_OB → MA to SN → AS_OB). |
+| 0.6.0 | 2026-06-05 | Danielle Mariani | Add Sub-Screen Navigation global pattern: sub-screens are full-screen; shell header and bottom nav not present; feature-owned top bar with back arrow, screen title, and optional actions. Update Header table: "App name" row → "App wordmark (logo)", static image asset, no tap action. Update App Structure block: header description updated to match. Update MainActivity note: replace TBD bottom nav suppression note with reference to Sub-Screen Navigation pattern. Update Mermaid diagram: header label updated. Add specs/features/home/requirements.md and specs/features/settings/requirements.md to Related Documents. Resolve open questions: full-screen forms bottom nav visibility (resolved via Sub-Screen Navigation pattern), app name (Capital — canonical definition in SPEC.md). Rename document title from "Budget App" to "Capital". |

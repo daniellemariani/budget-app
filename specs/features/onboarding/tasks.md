@@ -105,8 +105,8 @@ This group creates the Android project skeleton. No onboarding-specific code is 
   - `android/gradle/libs.versions.toml` (version catalog)
   - `android/app/build.gradle.kts`
   - `android/app/src/main/AndroidManifest.xml`
-  - `android/app/src/main/java/com/dmariani/budgetapp/app/MainActivity.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/app/BudgetApp.kt`
+  - `android/app/src/main/java/com/dmariani/capital/app/MainActivity.kt`
+  - `android/app/src/main/java/com/dmariani/capital/app/CapitalApp.kt`
   - `android/gradle/wrapper/gradle-wrapper.properties`
 - Details:
   Create a new Android project using Android Studio (Empty Activity template as base, then clean up generated boilerplate). Use the following configuration:
@@ -160,10 +160,10 @@ This group creates the Android project skeleton. No onboarding-specific code is 
   **`app/build.gradle.kts` key config:**
   ```kotlin
   android {
-      namespace = "com.dmariani.budgetapp"
+      namespace = "com.dmariani.capital"
       compileSdk = 36
       defaultConfig {
-          applicationId = "com.dmariani.budgetapp"
+          applicationId = "com.dmariani.capital"
           minSdk = 23
           targetSdk = 36
           versionCode = 1
@@ -173,9 +173,9 @@ This group creates the Android project skeleton. No onboarding-specific code is 
   }
   ```
 
-  The `applicationId` and package name `com.dmariani.budgetapp` are temporary and must be changed before public release. To rename: use Android Studio's refactor tool (Refactor → Rename package) and update `applicationId` in `build.gradle.kts`. This affects both the package structure and the Play Store identifier.
+  The `applicationId` and package name are `com.dmariani.capital`. To rename if needed in the future: use Android Studio's refactor tool (Refactor → Rename package) and update `applicationId` in `build.gradle.kts`. This affects both the package structure and the Play Store identifier.
 
-  `BudgetApp.kt` is the Application class annotated with `@HiltAndroidApp`. Register it in `AndroidManifest.xml` via `android:name=".app.BudgetApp"`.
+  `CapitalApp.kt` is the Application class annotated with `@HiltAndroidApp`. Register it in `AndroidManifest.xml` via `android:name=".app.CapitalApp"`.
 
   `MainActivity.kt` is a minimal empty `ComponentActivity` for now — it will be fleshed out in later tasks. Annotate with `@AndroidEntryPoint`.
 
@@ -190,18 +190,18 @@ This group creates the Android project skeleton. No onboarding-specific code is 
 - Status: Not Started
 - Depends on: TSK-ON-01
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/ui/` (directory)
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/domain/` (directory)
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/` (directory)
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/` (directory)
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/dashboard/` (directory, empty)
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/accounts/` (directory, empty)
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/transactions/` (directory, empty)
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/budgets/` (directory, empty)
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/goals/` (directory, empty)
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/categories/` (directory, empty)
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/merchants/` (directory, empty)
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/transfers/` (directory, empty)
+  - `android/app/src/main/java/com/dmariani/capital/core/ui/` (directory)
+  - `android/app/src/main/java/com/dmariani/capital/core/domain/` (directory)
+  - `android/app/src/main/java/com/dmariani/capital/core/data/` (directory)
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/` (directory)
+  - `android/app/src/main/java/com/dmariani/capital/feature/dashboard/` (directory, empty)
+  - `android/app/src/main/java/com/dmariani/capital/feature/accounts/` (directory, empty)
+  - `android/app/src/main/java/com/dmariani/capital/feature/transactions/` (directory, empty)
+  - `android/app/src/main/java/com/dmariani/capital/feature/budgets/` (directory, empty)
+  - `android/app/src/main/java/com/dmariani/capital/feature/goals/` (directory, empty)
+  - `android/app/src/main/java/com/dmariani/capital/feature/categories/` (directory, empty)
+  - `android/app/src/main/java/com/dmariani/capital/feature/merchants/` (directory, empty)
+  - `android/app/src/main/java/com/dmariani/capital/feature/transfers/` (directory, empty)
 - Details:
   Create the full feature and core directory skeleton as defined in `ARCHITECTURE.md`. Directories are empty at this stage — no files yet. The onboarding feature directory will be populated in subsequent tasks. Other feature directories are created now to avoid structural changes later.
 
@@ -216,11 +216,11 @@ This group creates the Android project skeleton. No onboarding-specific code is 
 - Status: Not Started
 - Depends on: TSK-ON-01, TSK-ON-02
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/ui/theme/Color.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/ui/theme/Type.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/ui/theme/Theme.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/ui/theme/Spacing.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/ui/theme/Radius.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/ui/theme/Color.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/ui/theme/Type.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/ui/theme/Theme.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/ui/theme/Spacing.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/ui/theme/Radius.kt`
   - `android/app/src/main/res/font/inter_variable.xml` (downloadable font descriptor)
 - Details:
   Implement the design token system from `specs/design/design.md` as a Material 3 `ColorScheme` and custom theme extensions.
@@ -231,7 +231,7 @@ This group creates the Android project skeleton. No onboarding-specific code is 
 
   **`Type.kt`** — define `Typography` using Inter font with the scale from `design.md` (Display 32sp/600, Headline 22sp/600, Title 17sp/600, Body 15sp/400, Label 13sp/500, Caption 11sp/400). Use `FontFamily` with the Inter downloadable font.
 
-  **`Theme.kt`** — define `BudgetAppTheme` composable that applies `MaterialTheme` with the correct `ColorScheme` (light/dark) and `Typography`. Map Budget App tokens to Material 3 roles as defined in `design.md` (Platform Adaptation section).
+  **`Theme.kt`** — define `AppTheme` composable that applies `MaterialTheme` with the correct `ColorScheme` (light/dark) and `Typography`. Map Budget App tokens to Material 3 roles as defined in `design.md` (Platform Adaptation section).
 
   **`Spacing.kt`** — define a `Spacing` data class with all spacing tokens (xxs=2dp, xs=4dp, sm=8dp, md=16dp, lg=24dp, xl=32dp, xxl=48dp) and a `LocalSpacing` `CompositionLocal`.
 
@@ -250,8 +250,8 @@ This group creates the Android project skeleton. No onboarding-specific code is 
 - Status: Not Started
 - Depends on: TSK-ON-01, TSK-ON-02
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/di/DatabaseModule.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/di/OnboardingModule.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/data/di/DatabaseModule.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/di/OnboardingModule.kt`
 - Details:
   **`DatabaseModule.kt`:** Hilt `@Module` installed in `SingletonComponent`. Created as a placeholder at this stage — no bindings yet. Room database and DAO providers will be added in TSK-ON-05, TSK-ON-06, and TSK-ON-07 as each entity is defined. Annotate with `@Module` and `@InstallIn(SingletonComponent::class)`.
 
@@ -281,10 +281,10 @@ This group sets up Room and all entities needed by onboarding (Workspace, Catego
 - Status: Not Started
 - Depends on: TSK-ON-04
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/AppDatabase.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/domain/Workspace.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/WorkspaceEntity.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/WorkspaceDao.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/data/AppDatabase.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/domain/Workspace.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/data/WorkspaceEntity.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/data/WorkspaceDao.kt`
 - Details:
   **`Workspace.kt` (domain model):** Pure Kotlin data class, no Room annotations. Fields: `id: String`, `name: String`, `baseCurrency: String`, `createdAt: Long`, `updatedAt: Long`, `deletedAt: Long?`, `lastSyncedAt: Long?`, `syncStatus: String?`.
 
@@ -292,13 +292,13 @@ This group sets up Room and all entities needed by onboarding (Workspace, Catego
 
   **`WorkspaceDao.kt`:** Interface annotated with `@Dao`. Methods: `insertWorkspace(entity: WorkspaceEntity)`, `getFirstWorkspace(): WorkspaceEntity?` (used for idempotency check). Both suspend functions.
 
-  **`AppDatabase.kt`:** `@Database` class listing all entities (start with `WorkspaceEntity` — others added as they are defined in later tasks). `version = 1`. Provide via Hilt in `DatabaseModule` as a singleton using `Room.databaseBuilder(context, AppDatabase::class.java, "budget_app.db")`. Export schema to `schemas/` directory for migration tracking: set `exportSchema = true` and configure `room.schemaLocation` in `build.gradle.kts`.
+  **`AppDatabase.kt`:** `@Database` class listing all entities (start with `WorkspaceEntity` — others added as they are defined in later tasks). `version = 1`. Provide via Hilt in `DatabaseModule` as a singleton using `Room.databaseBuilder(context, AppDatabase::class.java, "capital.db")`. Export schema to `schemas/` directory for migration tracking: set `exportSchema = true` and configure `room.schemaLocation` in `build.gradle.kts`.
 
   **Update `DatabaseModule.kt`:** Add the following providers at the end of this task:
   ```kotlin
   @Provides
   fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
-      Room.databaseBuilder(context, AppDatabase::class.java, "budget_app.db")
+      Room.databaseBuilder(context, AppDatabase::class.java, "capital.db")
           .build()
 
   @Provides
@@ -316,9 +316,9 @@ This group sets up Room and all entities needed by onboarding (Workspace, Catego
 - Status: Not Started
 - Depends on: TSK-ON-05
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/domain/Category.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/CategoryEntity.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/CategoryDao.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/domain/Category.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/data/CategoryEntity.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/data/CategoryDao.kt`
 - Details:
   **`Category.kt` (domain model):** Pure Kotlin data class. Fields: `id: String`, `workspaceId: String`, `name: String`, `icon: String?`, `isDefault: Boolean`, `isHidden: Boolean`, `createdAt: Long`, `updatedAt: Long`, `deletedAt: Long?`, `lastSyncedAt: Long?`, `syncStatus: String?`.
 
@@ -345,10 +345,10 @@ This group sets up Room and all entities needed by onboarding (Workspace, Catego
 - Status: Not Started
 - Depends on: TSK-ON-05
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/domain/Account.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/domain/AccountType.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/AccountEntity.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/AccountDao.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/domain/Account.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/domain/AccountType.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/data/AccountEntity.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/data/AccountDao.kt`
 - Details:
   **`AccountType.kt`:** Kotlin enum: `CHECKING`, `SAVINGS`, `CASH`, `CREDIT_CARD`.
 
@@ -383,7 +383,7 @@ This group implements the Repository, LocalDataSource, and Use Cases for onboard
 - Status: Not Started
 - Depends on: TSK-ON-05, TSK-ON-06, TSK-ON-07
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/data/local/OnboardingLocalDataSource.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/data/local/OnboardingLocalDataSource.kt`
 - Details:
   Class injected with `WorkspaceDao`, `CategoryDao`, and `AccountDao` via constructor. Wraps DAO calls — no business logic here.
 
@@ -406,8 +406,8 @@ This group implements the Repository, LocalDataSource, and Use Cases for onboard
 - Status: Not Started
 - Depends on: TSK-ON-08
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/domain/OnboardingRepository.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/data/OnboardingRepositoryImpl.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/domain/OnboardingRepository.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/data/OnboardingRepositoryImpl.kt`
 - Details:
   **`OnboardingRepository.kt`:** Interface with all methods needed by use cases. Mirror the `OnboardingLocalDataSource` surface at the domain level — but use domain models (`Workspace`, `Category`, `Account`), not entities.
 
@@ -433,7 +433,7 @@ This group implements the Repository, LocalDataSource, and Use Cases for onboard
 - Status: Not Started
 - Depends on: TSK-ON-09
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/domain/InitializeWorkspaceUseCase.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/domain/InitializeWorkspaceUseCase.kt`
 - Details:
   Single `suspend operator fun invoke(): Result<Unit>`.
 
@@ -462,7 +462,7 @@ This group implements the Repository, LocalDataSource, and Use Cases for onboard
 - Status: Not Started
 - Depends on: TSK-ON-13B (PreferencesDataSource must exist)
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/domain/SaveDisplayNameUseCase.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/domain/SaveDisplayNameUseCase.kt`
 - Details:
   Injects `PreferencesDataSource` via constructor (not `@ApplicationContext context` directly — all SharedPreferences access is centralized through `PreferencesDataSource`). Single `fun invoke(name: String)` (not suspend — SharedPreferences write with `apply()` is fire-and-forget).
 
@@ -482,7 +482,7 @@ This group implements the Repository, LocalDataSource, and Use Cases for onboard
 - Status: Not Started
 - Depends on: TSK-ON-09
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/domain/CreateAccountUseCase.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/domain/CreateAccountUseCase.kt`
 - Details:
   Single `suspend operator fun invoke(params: CreateAccountParams): Result<Unit>`.
 
@@ -525,7 +525,7 @@ This group defines all constants and string resources. Can be developed in paral
 - Status: Not Started
 - Depends on: TSK-ON-02
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/PreferenceKeys.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/data/PreferenceKeys.kt`
 - Details:
   ```kotlin
   object PreferenceKeys {
@@ -546,7 +546,7 @@ This group defines all constants and string resources. Can be developed in paral
 - Status: Not Started
 - Depends on: TSK-ON-13
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/data/PreferencesDataSource.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/data/PreferencesDataSource.kt`
 - Details:
   Centralized wrapper for all SharedPreferences access in the app. Any feature that reads or writes SharedPreferences must do so through this class — never by accessing SharedPreferences directly. This prevents scattered access patterns and makes testing straightforward via injection of a fake.
 
@@ -555,7 +555,7 @@ This group defines all constants and string resources. Can be developed in paral
       @ApplicationContext private val context: Context
   ) {
       private val prefs by lazy {
-          context.getSharedPreferences("budget_app_prefs", Context.MODE_PRIVATE)
+          context.getSharedPreferences("capital_prefs", Context.MODE_PRIVATE)
       }
 
       fun saveDisplayName(name: String) {
@@ -629,8 +629,8 @@ This group wires up `OnboardingActivity`, the `NavHost`, route constants, and ba
 - Status: Not Started
 - Depends on: TSK-ON-03, TSK-ON-13B
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/ui/OnboardingActivity.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/ui/OnboardingNavGraph.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/OnboardingActivity.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/OnboardingNavGraph.kt`
 - Details:
   **`MainActivity.kt` (update placeholder):** At this stage `MainActivity` must be an explicit empty placeholder — a blank white screen. It is not yet implemented. Add a comment inside the file:
   ```kotlin
@@ -643,7 +643,7 @@ This group wires up `OnboardingActivity`, the `NavHost`, route constants, and ba
   - Inject `PreferencesDataSource` via field injection: `@Inject lateinit var preferencesDataSource: PreferencesDataSource`
   - On `onCreate`: call `preferencesDataSource.isOnboardingCompleted()` — no direct SharedPreferences access
   - If `true`: start `MainActivity` via `Intent`, call `finish()`, return immediately
-  - If `false`: set content to `BudgetAppTheme { OnboardingNavGraph(onOnboardingComplete = { startActivity(...); finish() }) }`
+  - If `false`: set content to `AppTheme { OnboardingNavGraph(onOnboardingComplete = { startActivity(...); finish() }) }`
   - Register in `AndroidManifest.xml` as the launcher Activity. `MainActivity` is no longer the launcher.
   - Set `android:theme` to a splash/no-action-bar theme to avoid a brief toolbar flash on launch.
 
@@ -679,7 +679,7 @@ This group wires up `OnboardingActivity`, the `NavHost`, route constants, and ba
 - Status: Not Started
 - Depends on: TSK-ON-10, TSK-ON-11, TSK-ON-12
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/ui/OnboardingViewModel.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/OnboardingViewModel.kt`
 - Details:
   `@HiltViewModel` class. Injects `InitializeWorkspaceUseCase`, `SaveDisplayNameUseCase`, `CreateAccountUseCase`.
 
@@ -743,7 +743,7 @@ This group implements composables that are shared across screens or reused in ot
 - Status: Not Started
 - Depends on: TSK-ON-03, TSK-ON-14
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/core/ui/components/AccountFormFields.kt`
+  - `android/app/src/main/java/com/dmariani/capital/core/ui/components/AccountFormFields.kt`
 - Details:
   Stateless composable as defined in `design.md` (Shared Components section). Accepts all field values and change callbacks as parameters. Holds no internal state.
 
@@ -768,8 +768,8 @@ This group implements composables that are shared across screens or reused in ot
 - Status: Not Started
 - Depends on: TSK-ON-03, TSK-ON-14
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/ui/components/OnboardingPageIndicator.kt`
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/ui/components/OnboardingSlide.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/components/OnboardingPageIndicator.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/components/OnboardingSlide.kt`
 - Details:
   **`OnboardingPageIndicator`:** Row of `count` dots (8dp each). Active dot: filled circle, `color.accent.on`. Inactive: `color.accent.on` at 40% alpha. Gap between dots: `spacing.sm` (8dp). Parameters: `count: Int`, `activePage: Int`, `modifier`.
 
@@ -786,7 +786,7 @@ This group implements composables that are shared across screens or reused in ot
 - Status: Not Started
 - Depends on: TSK-ON-03, TSK-ON-14
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/ui/components/AccountSavedDialog.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/components/AccountSavedDialog.kt`
 - Details:
   Material 3 `AlertDialog` composable. Parameters: `onAddAnother: () -> Unit`, `onGoToHome: () -> Unit`.
 
@@ -814,7 +814,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Status: Not Started
 - Depends on: TSK-ON-15, TSK-ON-16, TSK-ON-18
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/ui/screens/FeatureSlidesScreen.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/screens/FeatureSlidesScreen.kt`
   - `android/app/src/main/res/drawable/ic_slide_1.xml` (placeholder illustration)
   - `android/app/src/main/res/drawable/ic_slide_2.xml` (placeholder illustration)
   - `android/app/src/main/res/drawable/ic_slide_3.xml` (placeholder illustration)
@@ -850,7 +850,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Status: Not Started
 - Depends on: TSK-ON-15, TSK-ON-16
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/ui/screens/SetYourNameScreen.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/screens/SetYourNameScreen.kt`
 - Details:
   Full-screen composable. Background: `color.background.primary`. No `Scaffold`.
 
@@ -886,7 +886,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Status: Not Started
 - Depends on: TSK-ON-15, TSK-ON-16, TSK-ON-17, TSK-ON-19
 - Creates:
-  - `android/app/src/main/java/com/dmariani/budgetapp/feature/onboarding/ui/screens/AddAnAccountScreen.kt`
+  - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/screens/AddAnAccountScreen.kt`
 - Details:
   Full-screen composable. Background: `color.background.primary`. Scrollable `Column` to handle small screens with the Credit Limit field visible.
 
@@ -926,7 +926,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Status: Not Started
 - Depends on: TSK-ON-16
 - Creates:
-  - `android/app/src/test/java/com/dmariani/budgetapp/feature/onboarding/OnboardingViewModelTest.kt`
+  - `android/app/src/test/java/com/dmariani/capital/feature/onboarding/OnboardingViewModelTest.kt`
 - Details:
   Use `kotlinx-coroutines-test` and `TestCoroutineDispatcher`. Mock use cases with fakes (not Mockito — prefer hand-written fakes for simplicity).
 
@@ -962,9 +962,9 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Status: Not Started
 - Depends on: TSK-ON-10, TSK-ON-11, TSK-ON-12
 - Creates:
-  - `android/app/src/test/java/com/dmariani/budgetapp/feature/onboarding/InitializeWorkspaceUseCaseTest.kt`
-  - `android/app/src/test/java/com/dmariani/budgetapp/feature/onboarding/SaveDisplayNameUseCaseTest.kt`
-  - `android/app/src/test/java/com/dmariani/budgetapp/feature/onboarding/CreateAccountUseCaseTest.kt`
+  - `android/app/src/test/java/com/dmariani/capital/feature/onboarding/InitializeWorkspaceUseCaseTest.kt`
+  - `android/app/src/test/java/com/dmariani/capital/feature/onboarding/SaveDisplayNameUseCaseTest.kt`
+  - `android/app/src/test/java/com/dmariani/capital/feature/onboarding/CreateAccountUseCaseTest.kt`
 - Details:
   **`InitializeWorkspaceUseCaseTest`:**
   - Creates Workspace and exactly 20 Categories when DB is empty
@@ -994,7 +994,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Status: Not Started
 - Depends on: TSK-ON-10, TSK-ON-12
 - Creates:
-  - `android/app/src/androidTest/java/com/dmariani/budgetapp/feature/onboarding/OnboardingRoomIntegrationTest.kt`
+  - `android/app/src/androidTest/java/com/dmariani/capital/feature/onboarding/OnboardingRoomIntegrationTest.kt`
 - Details:
   Use `Room.inMemoryDatabaseBuilder` for a clean database per test. Tests run on an Android device or emulator (instrumented tests).
 
@@ -1012,6 +1012,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 
 | Version | Date | Author | Notes |
 |---|---|---|---|
-| 0.1.0 | 2026-05-31 | Danielle Mariani | Initial draft. 25 tasks across 9 groups including Group 0 (Project Foundation). Versions: AGP 9.1.1, Kotlin 2.3.0, Gradle 9.4.1, Compose BOM 2026.05.00, compileSdk/targetSdk 36, minSdk 23. App ID: com.dmariani.budgetapp (temporary). |
+| 0.1.0 | 2026-05-31 | Danielle Mariani | Initial draft. 25 tasks across 9 groups including Group 0 (Project Foundation). Versions: AGP 9.1.1, Kotlin 2.3.0, Gradle 9.4.1, Compose BOM 2026.05.00, compileSdk/targetSdk 36, minSdk 23. App ID: com.dmariani.budgetapp (original placeholder). |
 | 0.2.0 | 2026-05-31 | Danielle Mariani | Add Task Summary table (ID, title, group, phase, effort, status). Add Status field to every task definition and Task Format section. All tasks initialised to Not Started. |
 | 0.3.0 | 2026-05-31 | Danielle Mariani | TSK-ON-04: expand to create OnboardingModule.kt and document @Binds pattern for repositories. TSK-ON-05/06/07: add explicit DatabaseModule updates for provideWorkspaceDao, provideCategoryDao, provideAccountDao. TSK-ON-09: add @Binds registration step in OnboardingModule. TSK-ON-13B (new): implement PreferencesDataSource as centralized SharedPreferences wrapper in core/data/. TSK-ON-11: update to inject PreferencesDataSource instead of Context directly. TSK-ON-15: update to inject PreferencesDataSource; clarify MainActivity is a temporary empty placeholder with TODO comment. TSK-ON-16: add explicit InitializationRetried event handling; extract initialize() private function to avoid duplication. Summary table updated with TSK-ON-13B row. |
+| 0.4.0 | 2026-06-05 | Danielle Mariani | Rename app package from com.dmariani.budgetapp to com.dmariani.capital throughout all file paths and code snippets. Rename BudgetApp.kt to CapitalApp.kt and update AndroidManifest reference. Rename BudgetAppTheme to AppTheme. Rename SharedPreferences file name from "budget_app_prefs" to "capital_prefs". Remove "temporary" note from applicationId — com.dmariani.capital is the confirmed package name. Rename Room database from "budget_app.db" to "capital.db" in TSK-ON-05. |

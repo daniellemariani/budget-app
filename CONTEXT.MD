@@ -1,24 +1,27 @@
-# AI Session Context — Capital (Budget App)
+# AI Session Context — Capital
 
 ## Purpose
 Paste this file at the start of any new Claude or Cursor session to restore project context. Update after each significant session.
 
 ## Last Updated
-2026-05-31
+2026-06-05
 
 ## Current Status
 - PRODUCT.md — complete v1.0.0
-- SPEC.md — complete v1.0.4
-- ARCHITECTURE.md — complete v1.0.2
+- SPEC.md — complete v1.0.5
+- ARCHITECTURE.md — complete v1.0.3
 - ROADMAP.md — complete v1.0.0
 - specs/technical/data-model.md — complete v0.7.0
 - specs/technical/offline-sync.md — complete v0.4.0
 - specs/technical/api-contract.md — complete v0.5.0
-- specs/design/navigation.md — complete v0.5.0
+- specs/design/navigation.md — complete v0.6.0
 - specs/design/design.md — complete (design system tokens, typography, spacing, elevation, Material 3 mapping)
 - specs/features/onboarding/requirements.md — complete v0.2.0
+- specs/features/onboarding/tasks.md — complete v0.4.0
 - specs/features/onboarding/design.md — complete v0.3.0
-- specs/features/onboarding/tasks.md — complete v0.3.0
+- specs/features/home/requirements.md — complete v0.3.0
+- specs/features/home/design.md — complete v0.2.0
+- specs/features/home/tasks.md — complete v0.1.0
 - All other feature specs — not started
 
 ## Key Technical Decisions Made
@@ -26,14 +29,9 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 ### App Identity
 - **App name:** Capital
 - **Tagline:** TBD
-- **Package name (temporary):** `com.dmariani.capital` — suitable for personal/development use
+- **Package name:** `com.dmariani.capital` — confirmed for Phase 1 development
 - **Package name (public launch):** to be decided when registering a legal entity or brand. Recommended pattern: `com.getcapital.app` or `io.capital.app` — check domain and Play Store availability before Phase 1 public release
 - **App ID** must match package name. Changing it after Play Store publication loses all reviews and install history — treat as permanent once published
-- **Immediate actions before TSK-ON-01:**
-  - Update `applicationId` in `app/build.gradle.kts` from `com.dmariani.budgetapp` to `com.dmariani.capital`
-  - Update root package name across all Kotlin files accordingly
-  - Replace all `[App Name]` placeholders in `strings.xml` with `Capital`
-  - Replace all `[App Name]` references in `requirements.md` with `Capital`
 - Android: Kotlin + Jetpack Compose + Hilt + Room + Coroutines/Flow
 - Android Network (Phase 2): Retrofit + Kotlin Serialization + OkHttp Interceptor
 - Android Image (Phase 2): Coil (`coil-compose`)
@@ -77,6 +75,7 @@ android/src/main/java/com/dmariani/capital/
 │       └── ...                        # one DAO per entity
 ├── feature/
 │   ├── onboarding/
+│   ├── home/
 │   ├── dashboard/
 │   ├── categories/
 │   ├── accounts/
@@ -85,10 +84,15 @@ android/src/main/java/com/dmariani/capital/
 │   ├── transfers/
 │   ├── budgets/
 │   ├── goals/
+│   ├── settings/
 │   └── ...
 └── app/
     ├── MainActivity.kt
-    └── AppNavGraph.kt
+    ├── AppNavGraph.kt         # Composes all feature nested nav graphs
+    ├── TopLevelDestination.kt # Sealed class for the 5 tab routes
+    └── ui/
+        ├── BottomNavigationBar.kt
+        └── Header.kt
 ```
 
 Each feature folder follows the structure:
@@ -345,7 +349,7 @@ Full contract defined in specs/technical/api-contract.md v0.4.1. Key decisions:
 - Flutter/KMP (Phase 4): expected to mirror Android — local DB first, sync engine for propagation
 
 ### Navigation Decisions
-Navigation structure defined in specs/design/navigation.md v0.5.0. Key decisions:
+Navigation structure defined in specs/design/navigation.md v0.6.0. Key decisions:
 
 - Android uses two activity contexts: OnboardingActivity (first launch only) and MainActivity (all post-onboarding screens)
 - `onboarding_completed` boolean stored in SharedPreferences; read on every app launch via `PreferencesDataSource` to determine whether to show OnboardingActivity or go directly to MainActivity
@@ -356,7 +360,11 @@ Navigation structure defined in specs/design/navigation.md v0.5.0. Key decisions
 - Clear Data wipes Room DB AND all SharedPreferences (including `onboarding_completed` and `display_name`) → relaunches OnboardingActivity
 - Phase 2 launch logic adds a second gate: valid Supabase session check after `onboarding_completed = true`
 - Bottom nav: Dashboard | Accounts | Transactions | Budgets | Goals (5 destinations, icon + label each)
-- Header: app name left, gear icon (Settings) right — not shown during onboarding
+- Navigation uses nested nav graph architecture: each feature defines its own NavGraphBuilder extension; AppNavGraph composes them; features never import each other
+- TopLevelDestination sealed class (app/ package) is the single source of truth for the 5 tab routes
+- Back stack per tab preserved via saveState/restoreState on tab selection
+- Sub-screens are full-screen: shell header and bottom nav not present; feature-owned top bar (back arrow + screen title + optional actions) replaces shell header
+- Header: app wordmark (logo) left, gear icon (Settings) right — not shown during onboarding
 - Workspace Management screen accessible via Manage button on Dashboard: Categories, Merchants, Currency (read-only Phase 1), Members (Phase 2)
 - Settings is personal only: Display Name, About, Version, Clear Data
 - Speed Dial FAB on Transactions (Add Transaction, Add Transfer) and Accounts (Add Checking, Add Savings, Add Cash, Add Credit Card)
@@ -369,7 +377,7 @@ Navigation structure defined in specs/design/navigation.md v0.5.0. Key decisions
 
 ### Feature Spec Conventions
 
-Each feature spec lives in `specs/features/[feature]/` and always contains exactly four files:
+Each feature spec lives in `specs/features/[feature]/` and contains the following files:
 
 ```
 specs/features/[feature]/
@@ -511,7 +519,7 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - Timezone handling for period filter presets: currently resolved in UTC; consider Workspace.timezone field (IANA) before Phase 3 web implementation
 - Budget spending on list endpoint: computing spending totals for every budget row may be expensive at scale — revisit with benchmarks at Phase 2 implementation
 - Transactions month label — month picker: tapping month label to open fast-navigation picker is TBD — decision at Phase 1 implementation
-- Full-screen forms — bottom nav visibility: suppress bottom nav when form is open? Decision per feature spec
+- Full-screen forms — bottom nav visibility: ~~resolved~~ — sub-screens are full-screen; shell header and bottom nav not present. Global pattern documented in navigation.md.
 - Account Detail — transaction history scope: all-time or rolling window — decision at Phase 1 implementation
 - App name: **Capital** ✓ decided
 - Package name: `com.dmariani.capital` for Phase 1 development. Final public package name to be decided before Play Store submission — requires legal entity or brand registration (see App Identity section)
@@ -534,6 +542,7 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 
 ### Phase 1 — Android Offline (Current)
 - [ ] Project setup (monorepo, Gradle, Hilt, Room, base package structure)
+- [ ] home/ — see specs/features/home/tasks.md
 - [ ] onboarding/ — see specs/features/onboarding/tasks.md
 - [ ] accounts/ — see specs/features/accounts/tasks.md
 - [ ] categories/ — see specs/features/categories/tasks.md
@@ -543,6 +552,7 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - [ ] budgets/ — see specs/features/budgets/tasks.md
 - [ ] goals/ — see specs/features/goals/tasks.md
 - [ ] dashboard/ — see specs/features/dashboard/tasks.md
+- [ ] settings/ — see specs/features/settings/tasks.md
 
 ### Phase 2 — Backend + Sync
 - [ ] Project setup (FastAPI, Supabase, Alembic, GitHub Actions)
@@ -582,12 +592,7 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 ## Next Session
 Start a new chat. Paste CONTEXT.md to restore full context.
 
-**Current state:** Onboarding feature spec is complete (requirements.md v0.2.0, design.md v0.3.0, tasks.md v0.3.0). All cross-file updates applied. App name decided: **Capital**.
-
-**Immediate actions before coding (do in this order):**
-1. Replace all `[App Name]` occurrences in `requirements.md` with `Capital`
-2. Replace all `[App Name]` occurrences in `strings.xml` (once created in TSK-ON-14) with `Capital`
-3. Confirm final package name before TSK-ON-01 — `com.dmariani.capital` for now, or check domain/Play Store availability for a public-facing ID
+**Current state:** Home feature spec is complete (requirements.md v0.3.0, design.md v0.2.0, tasks.md v0.1.0). Onboarding feature spec is complete (requirements.md v0.2.0, design.md v0.3.0, tasks.md v0.4.0). All cross-file updates applied: navigation.md v0.6.0, ARCHITECTURE.md v1.0.3, SPEC.md v1.0.5, CONTEXT.md updated. App name: **Capital**. Package name: `com.dmariani.capital`. Database: `capital.db`.
 
 **Next spec to write:** Accounts feature
 - `specs/features/accounts/requirements.md`
@@ -595,9 +600,9 @@ Start a new chat. Paste CONTEXT.md to restore full context.
 - `specs/features/accounts/tasks.md`
 
 **When ready to code:**
-- All onboarding tasks defined in `specs/features/onboarding/tasks.md` v0.3.0
-- Start from TSK-ON-01 and work through groups in order
-- Use `com.dmariani.capital` as package name in TSK-ON-01
+- Start from TSK-ON-01 (onboarding tasks) and work through groups in order
+- Home tasks (TSK-HM-01 through TSK-HM-09) follow onboarding foundation tasks
+- Package name: `com.dmariani.capital` — confirmed, no changes needed
 
 **Remaining feature spec order:**
-Accounts → Categories → Merchants → Transactions → Transfers → Budgets → Goals → Dashboard
+Accounts → Categories → Merchants → Transactions → Transfers → Budgets → Goals → Dashboard → Settings

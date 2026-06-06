@@ -1,13 +1,15 @@
-# Budget App
+# Capital (Budget App)
 
-**Version:** 1.0.4
+**Version:** 1.0.5
 **Status:** In Progress
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-21
-**Last Updated:** 2026-05-31
+**Last Updated:** 2026-06-05
 
 ## Overview
-Budget App is a personal finance management tool that allows users to track expenses, manage monthly budgets per category, and visualize spending patterns. Built offline-first for Android, with a web dashboard and backend sync in later phases.
+Capital is a personal finance management tool that allows users to track expenses, manage monthly budgets per category, and visualize spending patterns. Built offline-first for Android, with a web dashboard and backend sync in later phases.
+
+**App name:** Capital. This document is the canonical source for the app name. All other spec documents reference it generically (e.g. "[App Name]") and defer to this definition.
 
 ## Glossary
 
@@ -71,6 +73,7 @@ Each household or individual is represented as a Workspace. Users can belong to 
 ### Phase 1 — Android Offline
 | Feature | Spec | Description | Status |
 |---|---|---|---|
+| Home | specs/features/home/requirements.md | MainActivity shell — app header, bottom navigation bar, tab routing, back navigation | Not Started |
 | Onboarding | specs/features/onboarding/requirements.md | Getting started, initial setup | Not Started |
 | Transactions | specs/features/transactions/requirements.md | Add, edit, delete income and expenses | Not Started |
 | Categories | specs/features/categories/requirements.md | Organize transactions by type | Not Started |
@@ -80,6 +83,7 @@ Each household or individual is represented as a Workspace. Users can belong to 
 | Budgets | specs/features/budgets/requirements.md | Monthly spending limits per category | Not Started |
 | Goals | specs/features/goals/requirements.md | Savings targets with progress tracking | Not Started |
 | Dashboard | specs/features/dashboard/requirements.md | Summary view of financial health. Displays: net worth (assets, liabilities, net); current vs previous month income and expense comparison; budget status for current period sorted by most overspent; top 5 spending categories; active goal progress; last 10 transactions. Android generates this data locally from Room. Web uses GET /api/v1/workspaces/{workspace_id}/summary. | Not Started |
+| Settings | specs/features/settings/requirements.md | Personal settings — display name (inline edit), about screen, app version, clear data | Not Started |
 
 ### Phase 2 — Backend + Sync
 | Feature | Spec | Description | Status |
@@ -225,6 +229,7 @@ Note: Cashback and rewards are recorded as INCOME transactions in a user-defined
 | 1.0.2 | 2026-05-23 | Danielle Mariani | Add WorkspaceMember detail to glossary. Expand User Roles section with full role permission table and API enforcement reference. Update Phase 3 web scope note. Add RecurringTransaction and GoalContribution to Data Model Summary. |
 | 1.0.3 | 2026-05-26 | Danielle Mariani | Add BR-PI pinning rules section (BR-PI-01 through BR-PI-04). Update Data Model Summary — Account, Budget, and Goal entries now reference is_pinned and pinned_at. |
 | 1.0.4 | 2026-05-31 | Danielle Mariani | Name default Workspace "Personal" in Glossary and Data Model Summary. Update Onboarding feature index path from spec.md to requirements.md to reflect new feature spec file structure. |
+| 1.0.5 | 2026-06-05 | Danielle Mariani | Rename app from Budget App to Capital. Add canonical app name note to Overview. Add Home and Settings to Phase 1 Feature Index. |
 
 ## Related Documents
 

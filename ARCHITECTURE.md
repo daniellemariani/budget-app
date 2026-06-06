@@ -1,14 +1,14 @@
-# ARCHITECTURE.md — Budget App
+# ARCHITECTURE.md — Capital
 
-**Version:** 1.0.2
+**Version:** 1.0.3
 **Status:** In Progress
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-23
-**Last Updated:** 2026-05-31
+**Last Updated:** 2026-06-05
 
 ## Overview
 
-Budget App is a personal finance management tool built offline-first for Android, with a backend sync layer and web dashboard introduced incrementally across four phases. The primary architectural constraint is offline-first: Room is the single source of truth in Phase 1 and all features must function without network access. Backend, web, and cross-platform layers are introduced in later phases to avoid over-engineering before the core product is validated. This document describes the technical architecture, stack decisions, and cross-cutting concerns across all four phases.
+Capital is a personal finance management tool built offline-first for Android, with a backend sync layer and web dashboard introduced incrementally across four phases. The primary architectural constraint is offline-first: Room is the single source of truth in Phase 1 and all features must function without network access. Backend, web, and cross-platform layers are introduced in later phases to avoid over-engineering before the core product is validated. This document describes the technical architecture, stack decisions, and cross-cutting concerns across all four phases.
 
 ## Repository Structure
 
@@ -93,7 +93,7 @@ Feature-based. Each feature is organized layer-based internally. Each feature ow
 
 
 ```
-android/src/main/java/com/budgetapp/
+android/src/main/java/com/dmariani/capital/
 ├── core/
 │   ├── ui/                            # shared Composables, theme, design tokens
 │   ├── domain/                        # pure business objet. Domain entities: Transaction.kt, Budget.kt, Account.kt, ...
@@ -104,6 +104,7 @@ android/src/main/java/com/budgetapp/
 │       └── ...                        # one DAO per entity
 ├── feature/
 │   ├── onboarding/
+│   ├── home/
 │   ├── dashboard/
 │   ├── categories/
 │   ├── accounts/
@@ -112,10 +113,15 @@ android/src/main/java/com/budgetapp/
 │   ├── transfers/
 │   ├── budgets/
 │   ├── goals/
+│   ├── settings/
 │   └── ...
 └── app/
     ├── MainActivity.kt
-    └── AppNavGraph.kt    # Navigation graph
+    ├── AppNavGraph.kt         # Composes all feature nested nav graphs
+    ├── TopLevelDestination.kt # Sealed class for the 5 tab routes
+    └── ui/
+        ├── BottomNavigationBar.kt
+        └── Header.kt
 ```
 
 Each feature folder follows the structure:
@@ -143,7 +149,7 @@ Note: Feature Data package includes a `local/` directory from Phase 1. A `remote
 
 Room is the single source of truth in Phase 1. All data lives on-device.
 
-- Database name: `budget_app.db`
+- Database name: `capital.db`
 - All entities include `created_at`, `updated_at`, and `deleted_at` (soft delete)
 - Amounts stored as `INTEGER` (cents), never `REAL`
 - Dates stored as `INTEGER` (Unix timestamp, UTC)
@@ -152,7 +158,11 @@ Room is the single source of truth in Phase 1. All data lives on-device.
 
 ### Navigation
 
-Jetpack Compose Navigation with a single `NavHost` defined in `AppNavGraph.kt`. All destinations are defined as a sealed class or object hierarchy.
+Jetpack Compose Navigation with a nested nav graph architecture. `AppNavGraph.kt` hosts the single `NavHost` and composes feature-owned nested nav graphs via `NavGraphBuilder` extension functions. Each feature defines its own `NavGraphBuilder` extension (e.g. `accountsNavGraph()`, `budgetsNavGraph()`) and registers its internal routes independently. `AppNavGraph` imports and wires all feature nav graphs — features never import each other.
+
+Top-level tab routes are defined as a sealed class in `TopLevelDestination.kt` (`app/` package). Feature-internal routes are defined inside each feature package and not exposed outside the nav graph extension function. Settings is registered in `AppNavGraph` as a non-tab destination reachable from the header gear icon.
+
+Back stack per tab is preserved via `saveState` and `restoreState` on tab selection, ensuring each tab's navigation state survives tab switches.
 
 ### Dependency Injection
 
@@ -420,6 +430,16 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 - Use a database table for Configurations/Feature Flagging or identify a third-party solution to manage Remote Config (e.g. Firebase Remote Config)
 - Determine hosting platform for the Web solution. Vercel is a strong candidate.
 - Local database sync scope — Phase 1 and 2 use full local mirroring of all user data (offline-first, Room as single source of truth). For long-term scaling, consider windowed sync (e.g. last 12 months on device, older data fetched on demand) to reduce initial sync time and device storage on new installs. Revisit at Phase 2 kickoff based on data volume projections and target device specs.
+
+## Changelog
+
+| Version | Date | Author | Notes |
+|---|---|---|---|
+| 0.1.0 | 2026-04-23 | Danielle Mariani | Initial draft. |
+| 1.0.0 | 2026-04-28 | Danielle Mariani | Bump version to 1.0.0 |
+| 1.0.1 | 2026-05-25 | Danielle Mariani | Add Workspace Isolation and Currency cross-cutting concerns. Add pinning fields (`is_pinned`, `pinned_at`) to Local Database section. |
+| 1.0.2 | 2026-05-31 | Danielle Mariani | Add `PreferencesDataSource` to core/data/. Update Dependency Injection section to reflect CoreModule pattern. |
+| 1.0.3 | 2026-06-05 | Danielle Mariani | Rename app from Budget App to Capital throughout. Update package root from `com/budgetapp/` to `com/dmariani/capital/`. Add `home/` and `settings/` to feature list. Expand `app/` block: add `TopLevelDestination.kt`, `ui/BottomNavigationBar.kt`, `ui/Header.kt`. Update Navigation section: replace single NavHost description with nested nav graph architecture (feature-owned `NavGraphBuilder` extensions, `TopLevelDestination` sealed class, per-tab back stack preservation). Rename database from `budget_app.db` to `capital.db`. |
 
 ## Related Documents
 
