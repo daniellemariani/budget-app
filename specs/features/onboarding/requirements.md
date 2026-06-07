@@ -146,7 +146,7 @@ The Credit Limit field is only shown when the Account Type is set to Credit Card
 **RQ-ON-21 — Amount field constraints**
 Initial Balance and Credit Limit are stored as integers in cents (BR-DI-03). The maximum value for both fields is 999,999,999 cents ($9,999,999.99). Values exceeding this must not be accepted. Both fields must display amounts formatted according to the workspace currency (e.g. $1,234.56 for USD). Initial Balance accepts 0 as a valid value. Credit Limit must be greater than 0 when visible.
 
-For Credit Card accounts, the Credit Limit must be greater than or equal to the Initial Balance (BR-AC-04). If the user enters a Credit Limit that is less than the Initial Balance, an inline error is shown below the Credit Limit field on blur: *"Credit limit must be greater than or equal to the initial balance."* The Save button remains disabled until this error is resolved.
+For Credit Card accounts, the Credit Limit must be greater than or equal to the Initial Balance (BR-AC-04). If the user enters a Credit Limit that is less than the Initial Balance, an inline error is shown below the Credit Limit field on blur: *"Cannot be less than initial balance."* The Save button remains disabled until this error is resolved.
 
 **RQ-ON-22 — Save button state**
 The Save button is disabled until all mandatory fields are completed and valid. Mandatory fields are: Name (non-empty, ≤ 100 characters), Type (selected), Initial Balance (valid numeric value ≥ 0). When Type = Credit Card, Credit Limit (> 0) is also mandatory and must be greater than or equal to Initial Balance (BR-AC-04). The button becomes enabled as soon as all required fields are valid and returns to disabled if any required field is cleared or becomes invalid.
@@ -417,7 +417,7 @@ Then the Feature Slides are shown from slide 1, `onboarding_completed` is `false
 Given the user has selected Credit Card as the account type,
 And has entered an Initial Balance of $4,500.00,
 When the user enters a Credit Limit of $4,000.00 and moves focus away from the field (blur),
-Then an inline error appears below the Credit Limit field: *"Credit limit must be greater than or equal to the initial balance."*
+Then an inline error appears below the Credit Limit field: *"Cannot be less than initial balance."*
 And the Save button remains disabled.
 When the user corrects the Credit Limit to $4,500.00 or more,
 Then the error is cleared and the Save button becomes enabled (assuming all other fields are valid).
@@ -434,8 +434,8 @@ Then the error is cleared and the Save button becomes enabled (assuming all othe
 | Display Name at character limit | Input silently stops accepting characters | None — field simply stops | User is informed by field behavior only |
 | Initial Balance exceeds maximum | Inline field error | "Maximum amount is $9,999,999.99." | User corrects the amount |
 | Credit Limit exceeds maximum | Inline field error | "Maximum amount is $9,999,999.99." | User corrects the amount |
-| Credit Limit of zero or negative | Inline field error | "Credit limit must be greater than $0." | User corrects the amount |
-| Credit Limit less than Initial Balance | Inline field error on blur | "Credit limit must be greater than or equal to the initial balance." | User corrects the Credit Limit field |
+| Credit Limit of zero or negative | Inline field error | "Must be greater than $0." | User corrects the amount |
+| Credit Limit less than Initial Balance | Inline field error on blur | "Cannot be less than initial balance." | User corrects the Credit Limit field |
 
 ---
 

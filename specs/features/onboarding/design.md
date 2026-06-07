@@ -177,8 +177,8 @@ All user-facing copy is defined in `res/values/strings.xml`. Composables referen
 <string name="onboarding_error_duplicate_account_name">An account with this name already exists.</string>
 <string name="onboarding_error_account_save_failed">Couldn\'t save account. Please try again.</string>
 <string name="onboarding_error_max_amount">Maximum amount is $9,999,999.99.</string>
-<string name="onboarding_error_credit_limit_zero">Credit limit must be greater than $0.</string>
-<string name="onboarding_error_credit_limit_below_balance">Credit limit must be greater than or equal to the initial balance.</string>
+<string name="onboarding_error_credit_limit_zero">Must be greater than $0.</string>
+<string name="onboarding_error_credit_limit_below_balance">Cannot be less than initial balance.</string>
 
 <!-- Initialization Error -->
 <string name="onboarding_error_init_title">Something went wrong.</string>
