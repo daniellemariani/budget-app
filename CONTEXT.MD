@@ -16,9 +16,9 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 - specs/technical/api-contract.md — complete v0.5.0
 - specs/design/navigation.md — complete v0.6.0
 - specs/design/design.md — complete (design system tokens, typography, spacing, elevation, Material 3 mapping)
-- specs/features/onboarding/requirements.md — complete v0.2.0
-- specs/features/onboarding/tasks.md — complete v0.4.0
-- specs/features/onboarding/design.md — complete v0.3.0
+- specs/features/onboarding/requirements.md — complete v0.3.0
+- specs/features/onboarding/design.md — complete v0.4.0
+- specs/features/onboarding/tasks.md — complete v0.5.0
 - specs/features/home/requirements.md — complete v0.3.0
 - specs/features/home/design.md — complete v0.2.0
 - specs/features/home/tasks.md — complete v0.1.0
@@ -592,7 +592,7 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 ## Next Session
 Start a new chat. Paste CONTEXT.md to restore full context.
 
-**Current state:** Home feature spec is complete (requirements.md v0.3.0, design.md v0.2.0, tasks.md v0.1.0). Onboarding feature spec is complete (requirements.md v0.2.0, design.md v0.3.0, tasks.md v0.4.0). All cross-file updates applied: navigation.md v0.6.0, ARCHITECTURE.md v1.0.3, SPEC.md v1.0.5, CONTEXT.md updated. App name: **Capital**. Package name: `com.dmariani.capital`. Database: `capital.db`.
+**Current state:** Home feature spec is complete (requirements.md v0.3.0, design.md v0.2.0, tasks.md v0.1.0). Onboarding feature spec is complete (requirements.md v0.3.0, design.md v0.4.0, tasks.md v0.5.0). All cross-file updates applied: navigation.md v0.6.0, ARCHITECTURE.md v1.0.3, SPEC.md v1.0.5, CONTEXT.md updated. App name: **Capital**. Package name: `com.dmariani.capital`. Database: `capital.db`.
 
 **Next spec to write:** Accounts feature
 - `specs/features/accounts/requirements.md`
