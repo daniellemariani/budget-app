@@ -1,6 +1,6 @@
 # Capital (Budget App)
 
-**Version:** 1.0.5
+**Version:** 1.0.6
 **Status:** In Progress
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-21
@@ -154,6 +154,7 @@ Note: Cashback and rewards are recorded as INCOME transactions in a user-defined
 - BR-AC-01: Credit card account balance represents debt outstanding, not available funds
 - BR-AC-02: Net worth = SUM(asset account balances) - SUM(credit card balances)
 - BR-AC-03: An Account cannot be soft-deleted if it has associated transactions or transfers. User must reassign first. Goal contributions are not directly linked to accounts and are unaffected by account deletion.
+- BR-AC-04: For Credit Card accounts, the initial balance must not exceed the credit limit. Credit limit must be greater than or equal to the initial balance. Enforced as a cross-field validation rule in all account creation and edit forms.
 
 ### Merchants
 - BR-ME-01: A Merchant can be soft-deleted regardless of associated transactions. Existing transactions retain the merchant reference but it is hidden from selection.
@@ -230,6 +231,7 @@ Note: Cashback and rewards are recorded as INCOME transactions in a user-defined
 | 1.0.3 | 2026-05-26 | Danielle Mariani | Add BR-PI pinning rules section (BR-PI-01 through BR-PI-04). Update Data Model Summary — Account, Budget, and Goal entries now reference is_pinned and pinned_at. |
 | 1.0.4 | 2026-05-31 | Danielle Mariani | Name default Workspace "Personal" in Glossary and Data Model Summary. Update Onboarding feature index path from spec.md to requirements.md to reflect new feature spec file structure. |
 | 1.0.5 | 2026-06-05 | Danielle Mariani | Rename app from Budget App to Capital. Add canonical app name note to Overview. Add Home and Settings to Phase 1 Feature Index. |
+| 1.0.6 | 2026-06-05 | Danielle Mariani | Add BR-AC-04: For Credit Card accounts, initial balance must not exceed credit limit. Cross-field validation rule applies to all account creation and edit forms. |
 
 ## Related Documents
 

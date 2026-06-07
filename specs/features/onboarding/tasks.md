@@ -1,11 +1,11 @@
 # Onboarding — Tasks
 
-**Version:** 0.3.0
+**Version:** 0.5.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-31
-**Last Updated:** 2026-05-31
+**Last Updated:** 2026-06-05
 
 ---
 
@@ -714,7 +714,9 @@ This group wires up `OnboardingActivity`, the `NavHost`, route constants, and ba
 
   **Display Name validation:** `isDisplayNameValid = displayName.trim().length in 2..30`. Recomputed on every `DisplayNameChanged` event.
 
-  **Account form validation:** `isAccountFormValid` is `true` when: `accountName.trim()` is non-empty and ≤ 100 chars, `initialBalance` parses to a valid value ≥ 0 and ≤ 999,999,999 cents, and if `accountType == CREDIT_CARD` then `creditLimit` parses to > 0 and ≤ 999,999,999 cents.
+  **Account form validation:** `isAccountFormValid` is `true` when: `accountName.trim()` is non-empty and ≤ 100 chars, `initialBalance` parses to a valid value ≥ 0 and ≤ 999,999,999 cents, and if `accountType == CREDIT_CARD` then `creditLimit` parses to > 0, ≤ 999,999,999 cents, and ≥ `initialBalance` in cents (BR-AC-04). `isAccountFormValid` is `false` when `creditLimitBelowBalanceError` is non-null.
+
+  **Credit Limit blur validation:** On `CreditLimitChanged` events where focus has left the field, the ViewModel checks if `accountType == CREDIT_CARD` and `creditLimitCents < initialBalanceCents`. If true: set `creditLimitBelowBalanceError = R.string.onboarding_error_credit_limit_below_balance`. If false: clear `creditLimitBelowBalanceError`. This same check is repeated inside `SaveAccount` as a guard before calling `CreateAccountUseCase`.
 
   **`ContinueWithName`:** trim name, call `SaveDisplayNameUseCase`, emit `NavigateToAddAnAccount`.
 
@@ -942,6 +944,10 @@ This group implements the three onboarding screen composables. Each screen is wi
   - `isAccountFormValid true with valid Checking fields`
   - `isAccountFormValid false for CreditCard when creditLimit missing`
   - `isAccountFormValid true for CreditCard with all fields`
+  - `creditLimitBelowBalanceError set when CreditLimitFocusLost and creditLimit < initialBalance`
+  - `creditLimitBelowBalanceError cleared when CreditLimitFocusLost and creditLimit >= initialBalance`
+  - `isAccountFormValid false for CreditCard when creditLimitBelowBalanceError is non-null`
+  - `SaveAccount blocked when creditLimit < initialBalance even without prior blur`
   - `accountType changed to CREDIT_CARD → creditLimit visible in form state`
   - `accountType changed away from CREDIT_CARD → creditLimit cleared`
   - `SaveAccount success → showAccountSavedDialog = true, savedAccountsCount incremented`
@@ -1016,3 +1022,4 @@ This group implements the three onboarding screen composables. Each screen is wi
 | 0.2.0 | 2026-05-31 | Danielle Mariani | Add Task Summary table (ID, title, group, phase, effort, status). Add Status field to every task definition and Task Format section. All tasks initialised to Not Started. |
 | 0.3.0 | 2026-05-31 | Danielle Mariani | TSK-ON-04: expand to create OnboardingModule.kt and document @Binds pattern for repositories. TSK-ON-05/06/07: add explicit DatabaseModule updates for provideWorkspaceDao, provideCategoryDao, provideAccountDao. TSK-ON-09: add @Binds registration step in OnboardingModule. TSK-ON-13B (new): implement PreferencesDataSource as centralized SharedPreferences wrapper in core/data/. TSK-ON-11: update to inject PreferencesDataSource instead of Context directly. TSK-ON-15: update to inject PreferencesDataSource; clarify MainActivity is a temporary empty placeholder with TODO comment. TSK-ON-16: add explicit InitializationRetried event handling; extract initialize() private function to avoid duplication. Summary table updated with TSK-ON-13B row. |
 | 0.4.0 | 2026-06-05 | Danielle Mariani | Rename app package from com.dmariani.budgetapp to com.dmariani.capital throughout all file paths and code snippets. Rename BudgetApp.kt to CapitalApp.kt and update AndroidManifest reference. Rename BudgetAppTheme to AppTheme. Rename SharedPreferences file name from "budget_app_prefs" to "capital_prefs". Remove "temporary" note from applicationId — com.dmariani.capital is the confirmed package name. Rename Room database from "budget_app.db" to "capital.db" in TSK-ON-05. |
+| 0.5.0 | 2026-06-05 | Danielle Mariani | Add cross-field Credit Limit validation (BR-AC-04, BR-ON-09): TSK-ON-14 — add `onboarding_error_credit_limit_below_balance` string resource. TSK-ON-16 — update Account form validation: `isAccountFormValid` requires Credit Limit ≥ Initial Balance for Credit Card; add `CreditLimitFocusLost` event; add blur validation logic for `creditLimitBelowBalanceError`. TSK-ON-23 — add 4 unit test cases for blur validation and `isAccountFormValid` with cross-field error. |

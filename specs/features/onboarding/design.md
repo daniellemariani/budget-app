@@ -1,11 +1,11 @@
 # Onboarding — Design
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-30
-**Last Updated:** 2026-05-31
+**Last Updated:** 2026-06-05
 
 ---
 
@@ -178,6 +178,7 @@ All user-facing copy is defined in `res/values/strings.xml`. Composables referen
 <string name="onboarding_error_account_save_failed">Couldn\'t save account. Please try again.</string>
 <string name="onboarding_error_max_amount">Maximum amount is $9,999,999.99.</string>
 <string name="onboarding_error_credit_limit_zero">Credit limit must be greater than $0.</string>
+<string name="onboarding_error_credit_limit_below_balance">Credit limit must be greater than or equal to the initial balance.</string>
 
 <!-- Initialization Error -->
 <string name="onboarding_error_init_title">Something went wrong.</string>
@@ -643,7 +644,7 @@ class OnboardingActivity : ComponentActivity() {
             return
         }
         setContent {
-            BudgetAppTheme {
+            AppTheme {
                 OnboardingNavGraph(
                     onOnboardingComplete = {
                         startActivity(Intent(this, MainActivity::class.java))
@@ -779,6 +780,7 @@ Initial Balance and Credit Limit are collected as raw strings from the user and 
 2. Parse to `Double`
 3. Multiply by 100, round to nearest integer
 4. Validate: result must be ≥ 0 for Initial Balance, > 0 for Credit Limit, ≤ 999,999,999 for both
+5. Cross-field validate: if account type is Credit Card, Credit Limit must be ≥ Initial Balance (BR-AC-04). This check runs on Credit Limit blur and on SaveAccount. If Credit Limit < Initial Balance, set `creditLimitBelowBalanceError`.
 
 This parsing runs in the ViewModel on `SaveAccount` event, not on every keystroke. Field-level formatting (displaying `$1,234.56` as the user types) is handled by a custom `VisualTransformation` on the `OutlinedTextField`.
 
@@ -822,6 +824,7 @@ fun saveDisplayName(name: String) {
 | Initial Balance exceeds maximum | Validation in ViewModel on SaveAccount | `initialBalanceError = "Maximum amount is $9,999,999.99."` | Inline error below Initial Balance field. |
 | Credit Limit exceeds maximum | Validation in ViewModel on SaveAccount | `creditLimitError = "Maximum amount is $9,999,999.99."` | Inline error below Credit Limit field. |
 | Credit Limit zero or negative | Validation in ViewModel on SaveAccount | `creditLimitError = "Credit limit must be greater than $0."` | Inline error below Credit Limit field. |
+| Credit Limit below Initial Balance | Validation in ViewModel on Credit Limit blur and on SaveAccount | `creditLimitBelowBalanceError = "Credit limit must be greater than or equal to the initial balance."` | Inline error below Credit Limit field. Save button remains disabled. |
 
 All errors are surfaced as fields in `OnboardingUiState` — no exceptions are thrown to the UI layer. The ViewModel catches all exceptions from use cases and maps them to state. No Snackbars are used during onboarding — all errors are inline, close to the relevant field or action.
 
@@ -845,7 +848,7 @@ Tapping Retry dispatches `OnboardingEvent.InitializationRetried`, which re-runs 
 
 | Class | What to test |
 |---|---|
-| `OnboardingViewModel` | `isDisplayNameValid` transitions (empty → 1 char → 2 chars → 30 chars → cleared). `isAccountFormValid` with all field combinations. Credit Limit field visibility logic. `SaveAccount` happy path. `SaveAccount` with duplicate name. `SaveAccount` with Room write failure. `AddAnotherAccount` clears form state. `ContinueWithName` emits correct side effect. |
+| `OnboardingViewModel` | `isDisplayNameValid` transitions (empty → 1 char → 2 chars → 30 chars → cleared). `isAccountFormValid` with all field combinations. Credit Limit field visibility logic. `SaveAccount` happy path. `SaveAccount` with duplicate name. `SaveAccount` with Room write failure. `AddAnotherAccount` clears form state. `ContinueWithName` emits correct side effect. Credit Limit blur with value below Initial Balance sets `creditLimitBelowBalanceError`. Credit Limit blur with value equal to or above Initial Balance clears `creditLimitBelowBalanceError`. `isAccountFormValid` is false when `creditLimitBelowBalanceError` is non-null. |
 | `InitializeWorkspaceUseCase` | Creates Workspace and 20 Categories on empty DB. Is idempotent on second call (no duplicates). Returns error on DAO failure. |
 | `SaveDisplayNameUseCase` | Delegates correctly to `PreferencesDataSource.saveDisplayName`. Trims whitespace before delegating. |
 | `CreateAccountUseCase` | Happy path: Account persisted to Room with correct field values. Duplicate name: throws or returns error result. Amount parsing: correct cents conversion for boundary values (0, 1, 999999999). |
@@ -870,3 +873,4 @@ Deferred — consistent with the global testing strategy in `ARCHITECTURE.md`. U
 | 0.1.0 | 2026-05-30 | Danielle Mariani | Initial draft |
 | 0.2.0 | 2026-05-31 | Danielle Mariani | Add Constants section with `PreferenceKeys` object (`ONBOARDING_COMPLETED`, `DISPLAY_NAME`) in `core/data/`. Add `strings.xml` string resource definitions for all onboarding copy, labels, and error messages. Update SharedPreferences table in Data Models to reference `PreferenceKeys` constants. Update `OnboardingActivity` and `SaveDisplayNameUseCase` snippets to use `PreferenceKeys`. Update Atomic SharedPreferences Write note. |
 | 0.3.0 | 2026-05-31 | Danielle Mariani | Introduce `PreferencesDataSource` as centralized SharedPreferences wrapper in `core/data/`. Update Architecture Overview: all SharedPreferences access goes through `PreferencesDataSource`, no direct access anywhere. Update Component Structure: add `di/OnboardingModule.kt`, update `OnboardingActivity` and `SaveDisplayNameUseCase` comments. Update `OnboardingActivity` snippet: inject `PreferencesDataSource` via `@Inject`, call `isOnboardingCompleted()`. Rewrite Dependency Injection section: split into `DatabaseModule` and `OnboardingModule` (abstract class with `@Binds` + companion `@Provides`); use cases use constructor injection. Update Atomic SharedPreferences Write: centralized in `PreferencesDataSource.saveDisplayName`. Update Testing Strategy rows for `SaveDisplayNameUseCase` and SharedPreferences integration. |
+| 0.4.0 | 2026-06-05 | Danielle Mariani | Add cross-field Credit Limit validation (BR-AC-04): Credit Limit must be ≥ Initial Balance for Credit Card accounts. Add `creditLimitBelowBalanceError` field to `OnboardingUiState`. Add validation step 5 to Currency Input Parsing. Add `creditLimitBelowBalanceError` param to `AccountFormFields`. Add new error row to Error Handling table. Add `onboarding_error_credit_limit_below_balance` string resource. Update `OnboardingViewModel` testing strategy with blur and `isAccountFormValid` cases. Fix `BudgetAppTheme` → `AppTheme` in `OnboardingActivity` snippet. |
