@@ -1,11 +1,11 @@
 # Onboarding — Requirements
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-29
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-08
 
 ---
 
@@ -53,7 +53,7 @@ The app must display a full-screen swipeable pager with exactly 3 slides when `o
 
 **RQ-ON-02 — Feature Slides visual layout**
 Each slide must follow this layout from top to bottom:
-- App logo (PNG) centered horizontally at the top of the screen
+- Capital wordmark centered horizontally at the top of the screen
 - A large illustration centered in the screen, covering the majority of the display area, representing the slide's key message
 - Slide title in white, bold
 - Slide key message in white, regular weight
@@ -93,7 +93,7 @@ There is no explicit back button on the Feature Slides screen. On slide 1, the O
 ### Set Your Name
 
 **RQ-ON-09 — Display Set Your Name screen**
-After the Feature Slides (via Skip or Get Started), the app must display a full-screen Set Your Name screen. This screen uses the app's default (light) background color and default text color, signaling a visual transition from the onboarding slides into the app experience. The app logo (PNG) is displayed centered horizontally at the top of the screen.
+After the Feature Slides (via Skip or Get Started), the app must display a full-screen Set Your Name screen. This screen uses the app's default (light) background color and default text color, signaling a visual transition from the onboarding slides into the app experience. The Capital wordmark is displayed centered horizontally at the top of the screen.
 
 **RQ-ON-10 — Display Name input field**
 A single text input field must be displayed for the user to enter their Display Name. The field has a transparent background. The font size is considerably larger than the surrounding screen copy. The field accepts a maximum of 30 characters. Once the 30-character limit is reached, the field must not accept additional input. The minimum valid length is 2 characters.
@@ -122,7 +122,7 @@ There is no explicit back button on this screen. The OS back gesture or back but
 ### Add an Account
 
 **RQ-ON-17 — Display Add an Account screen**
-After Set Your Name, the app must display a full-screen Add an Account screen. The screen uses the app's default (light) background and default text color. The app logo is displayed at the top, centered horizontally.
+After Set Your Name, the app must display a full-screen Add an Account screen. The screen uses the app's default (light) background and default text color. The Capital wordmark is displayed at the top, centered horizontally.
 
 **RQ-ON-18 — Encouraging copy**
 The following copy must be displayed at the top of the form, below the logo:
@@ -146,7 +146,7 @@ The Credit Limit field is only shown when the Account Type is set to Credit Card
 **RQ-ON-21 — Amount field constraints**
 Initial Balance and Credit Limit are stored as integers in cents (BR-DI-03). The maximum value for both fields is 999,999,999 cents ($9,999,999.99). Values exceeding this must not be accepted. Both fields must display amounts formatted according to the workspace currency (e.g. $1,234.56 for USD). Initial Balance accepts 0 as a valid value. Credit Limit must be greater than 0 when visible.
 
-For Credit Card accounts, the Credit Limit must be greater than or equal to the Initial Balance (BR-AC-04). If the user enters a Credit Limit that is less than the Initial Balance, an inline error is shown below the Credit Limit field on blur: *"Cannot be less than initial balance."* The Save button remains disabled until this error is resolved.
+For Credit Card accounts, the Credit Limit must be greater than or equal to the Initial Balance (BR-AC-04). If the user enters a Credit Limit that is less than the Initial Balance, an inline error is shown below the Credit Limit field on blur: *"Credit limit must be greater than or equal to the initial balance."* The Save button remains disabled until this error is resolved.
 
 **RQ-ON-22 — Save button state**
 The Save button is disabled until all mandatory fields are completed and valid. Mandatory fields are: Name (non-empty, ≤ 100 characters), Type (selected), Initial Balance (valid numeric value ≥ 0). When Type = Credit Card, Credit Limit (> 0) is also mandatory and must be greater than or equal to Initial Balance (BR-AC-04). The button becomes enabled as soon as all required fields are valid and returns to disabled if any required field is cleared or becomes invalid.
@@ -417,7 +417,7 @@ Then the Feature Slides are shown from slide 1, `onboarding_completed` is `false
 Given the user has selected Credit Card as the account type,
 And has entered an Initial Balance of $4,500.00,
 When the user enters a Credit Limit of $4,000.00 and moves focus away from the field (blur),
-Then an inline error appears below the Credit Limit field: *"Cannot be less than initial balance."*
+Then an inline error appears below the Credit Limit field: *"Credit limit must be greater than or equal to the initial balance."*
 And the Save button remains disabled.
 When the user corrects the Credit Limit to $4,500.00 or more,
 Then the error is cleared and the Save button becomes enabled (assuming all other fields are valid).
@@ -434,8 +434,8 @@ Then the error is cleared and the Save button becomes enabled (assuming all othe
 | Display Name at character limit | Input silently stops accepting characters | None — field simply stops | User is informed by field behavior only |
 | Initial Balance exceeds maximum | Inline field error | "Maximum amount is $9,999,999.99." | User corrects the amount |
 | Credit Limit exceeds maximum | Inline field error | "Maximum amount is $9,999,999.99." | User corrects the amount |
-| Credit Limit of zero or negative | Inline field error | "Must be greater than $0." | User corrects the amount |
-| Credit Limit less than Initial Balance | Inline field error on blur | "Cannot be less than initial balance." | User corrects the Credit Limit field |
+| Credit Limit of zero or negative | Inline field error | "Credit limit must be greater than $0." | User corrects the amount |
+| Credit Limit less than Initial Balance | Inline field error on blur | "Credit limit must be greater than or equal to the initial balance." | User corrects the Credit Limit field |
 
 ---
 
@@ -448,7 +448,7 @@ Then the error is cleared and the Save button becomes enabled (assuming all othe
 | Workspace entity | Internal | Must exist before Account or Category can be created (BR-WS-01) |
 | Category entity | Internal | Default categories seeded during initialization |
 | Account entity and creation form | Internal | Add an Account reuses the same form as the Accounts feature. The Accounts feature spec must define the canonical form — onboarding references it. |
-| App logo asset | Design | PNG asset required for Feature Slides and Set Your Name screen |
+| Capital wordmark asset | Design | Required for Feature Slides, Set Your Name, and Add an Account screens |
 | Slide illustrations | Design | 3 illustration assets (one per slide). Placeholders acceptable for Phase 1. |
 | Accent color token | Design | Used as background for Feature Slides |
 | AppNavGraph | Internal | OnboardingActivity has its own NavHost. Navigation to MainActivity is handled via Intent, not Compose Navigation. |
@@ -476,3 +476,4 @@ Full web onboarding spec is defined at Phase 3 kickoff.
 | 0.1.0 | 2026-05-29 | Danielle Mariani | Initial draft |
 | 0.2.0 | 2026-05-30 | Danielle Mariani | RQ-ON-01: add onboarding_completed = false gate. RQ-ON-05: move Skip to bottom-right corner. RQ-ON-06: clarify Get Started as a distinct filled button separate from Skip. RQ-ON-08: slide 1 back exits the app (was no-op); slides 2–3 back navigates to previous slide. RQ-ON-12: specify SharedPreferences key names (display_name, onboarding_completed). RQ-ON-23: update dialog body copy to "go to the app's Home". EC-ON-04: updated to reflect slide 1 back exits the app. EC-ON-06: clarified field enforces max length silently, no error message. EC-ON-09: add note about OS-level data clear via Android device Settings. BR-ON-08: rewritten to cover back behavior across all onboarding screens consistently. AC IDs: removed HP/EC distinction — all IDs follow AC-ON-NN format (AC-ON-01 through AC-ON-20). |
 | 0.3.0 | 2026-06-05 | Danielle Mariani | RQ-ON-21: add cross-field validation — Credit Limit must be ≥ Initial Balance for Credit Card accounts; inline error on blur below Credit Limit field. RQ-ON-22: add Credit Limit ≥ Initial Balance to Save button validity conditions. Error Handling table: add Credit Limit < Initial Balance row. Add BR-ON-09: Credit Card balance and limit constraint (references BR-AC-04 in SPEC.md). Add AC-ON-21: inline Credit Limit error when balance exceeds limit. |
+| 0.4.0 | 2026-06-08 | Danielle Mariani | RQ-ON-02, RQ-ON-09, RQ-ON-17: replace app logo with Capital wordmark (centered, top of screen) across all three onboarding screens. Dependencies table: rename "App logo asset" to "Capital wordmark asset"; expand note to include Add an Account screen. |

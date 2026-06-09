@@ -1,11 +1,11 @@
 # Onboarding — Design
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-30
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-08
 
 ---
 
@@ -177,8 +177,8 @@ All user-facing copy is defined in `res/values/strings.xml`. Composables referen
 <string name="onboarding_error_duplicate_account_name">An account with this name already exists.</string>
 <string name="onboarding_error_account_save_failed">Couldn\'t save account. Please try again.</string>
 <string name="onboarding_error_max_amount">Maximum amount is $9,999,999.99.</string>
-<string name="onboarding_error_credit_limit_zero">Must be greater than $0.</string>
-<string name="onboarding_error_credit_limit_below_balance">Cannot be less than initial balance.</string>
+<string name="onboarding_error_credit_limit_zero">Credit limit must be greater than $0.</string>
+<string name="onboarding_error_credit_limit_below_balance">Credit limit must be greater than or equal to the initial balance.</string>
 
 <!-- Initialization Error -->
 <string name="onboarding_error_init_title">Something went wrong.</string>
@@ -346,9 +346,9 @@ sealed class OnboardingSideEffect {
 |---|---|---|
 | Screen background | `color.accent.primary` | Full-screen fill. Applies to all 3 slides uniformly. |
 | All text (title, body, buttons) | `color.accent.on` | White on accent background |
-| App logo top padding | `spacing.xl` (32dp) | From status bar to top of logo |
-| Logo bottom margin | `spacing.lg` (24dp) | Between logo and illustration |
-| Illustration area | Fills remaining space between logo and copy | Centered, scales with screen height |
+| Capital wordmark top padding | `spacing.xl` (32dp) | From status bar to top of wordmark |
+| Wordmark bottom margin | `spacing.lg` (24dp) | Between wordmark and illustration |
+| Illustration area | Fills remaining space between wordmark and copy | Centered, scales with screen height |
 | Slide title | Typography: Headline (22sp, weight 600) | `color.accent.on` |
 | Slide key message | Typography: Body (15sp, weight 400) | `color.accent.on`, `spacing.xs` below title |
 | Horizontal padding (copy) | `spacing.lg` (24dp) | Left and right |
@@ -370,7 +370,7 @@ sealed class OnboardingSideEffect {
 
 ```
 SetYourNameScreen
-    ├── Image — app logo (top, centered)
+    ├── Image — Capital wordmark (top, centered)
     ├── BasicTextField — Display Name input
     │       └── Large, transparent background, bottom border only
     ├── Text — privacy copy (Caption style, secondary color)
@@ -408,8 +408,8 @@ On `ContinueWithName`:
 | Element | Token | Notes |
 |---|---|---|
 | Screen background | `color.background.primary` | Light background — signals transition into the app |
-| App logo top padding | `spacing.xl` (32dp) | From status bar to top of logo |
-| Logo bottom margin | `spacing.xxl` (48dp) | Generous space between logo and name field |
+| Capital wordmark top padding | `spacing.xl` (32dp) | From status bar to top of wordmark |
+| Wordmark bottom margin | `spacing.xxl` (48dp) | Generous space between wordmark and name field |
 | Display Name field font size | 28sp, weight 400 | Larger than Body scale — intentionally prominent. Uses Inter. |
 | Display Name field text color | `color.text.primary` | |
 | Display Name field background | Transparent | Bottom border only: `color.border.default` at 1dp |
@@ -431,7 +431,7 @@ On `ContinueWithName`:
 
 ```
 AddAnAccountScreen
-    ├── Image — app logo (top, centered)
+    ├── Image — Capital wordmark (top, centered)
     ├── Text — encouraging copy (Body style)
     ├── AccountFormFields                   # shared composable from core/ui/
     │       ├── OutlinedTextField — Account Name
@@ -501,8 +501,8 @@ On `GoToHome`:
 | Element | Token | Notes |
 |---|---|---|
 | Screen background | `color.background.primary` | |
-| App logo top padding | `spacing.xl` (32dp) | |
-| Logo bottom margin | `spacing.lg` (24dp) | Between logo and encouraging copy |
+| Capital wordmark top padding | `spacing.xl` (32dp) | |
+| Wordmark bottom margin | `spacing.lg` (24dp) | Between wordmark and encouraging copy |
 | Encouraging copy | Typography: Body (15sp, weight 400) | `color.text.secondary`, centered |
 | Encouraging copy bottom margin | `spacing.lg` (24dp) | Between copy and form |
 | Form horizontal padding | `spacing.md` (16dp) | Left and right screen inset |
@@ -874,3 +874,4 @@ Deferred — consistent with the global testing strategy in `ARCHITECTURE.md`. U
 | 0.2.0 | 2026-05-31 | Danielle Mariani | Add Constants section with `PreferenceKeys` object (`ONBOARDING_COMPLETED`, `DISPLAY_NAME`) in `core/data/`. Add `strings.xml` string resource definitions for all onboarding copy, labels, and error messages. Update SharedPreferences table in Data Models to reference `PreferenceKeys` constants. Update `OnboardingActivity` and `SaveDisplayNameUseCase` snippets to use `PreferenceKeys`. Update Atomic SharedPreferences Write note. |
 | 0.3.0 | 2026-05-31 | Danielle Mariani | Introduce `PreferencesDataSource` as centralized SharedPreferences wrapper in `core/data/`. Update Architecture Overview: all SharedPreferences access goes through `PreferencesDataSource`, no direct access anywhere. Update Component Structure: add `di/OnboardingModule.kt`, update `OnboardingActivity` and `SaveDisplayNameUseCase` comments. Update `OnboardingActivity` snippet: inject `PreferencesDataSource` via `@Inject`, call `isOnboardingCompleted()`. Rewrite Dependency Injection section: split into `DatabaseModule` and `OnboardingModule` (abstract class with `@Binds` + companion `@Provides`); use cases use constructor injection. Update Atomic SharedPreferences Write: centralized in `PreferencesDataSource.saveDisplayName`. Update Testing Strategy rows for `SaveDisplayNameUseCase` and SharedPreferences integration. |
 | 0.4.0 | 2026-06-05 | Danielle Mariani | Add cross-field Credit Limit validation (BR-AC-04): Credit Limit must be ≥ Initial Balance for Credit Card accounts. Add `creditLimitBelowBalanceError` field to `OnboardingUiState`. Add validation step 5 to Currency Input Parsing. Add `creditLimitBelowBalanceError` param to `AccountFormFields`. Add new error row to Error Handling table. Add `onboarding_error_credit_limit_below_balance` string resource. Update `OnboardingViewModel` testing strategy with blur and `isAccountFormValid` cases. Fix `BudgetAppTheme` → `AppTheme` in `OnboardingActivity` snippet. |
+| 0.5.0 | 2026-06-08 | Danielle Mariani | Replace app logo with Capital wordmark across all three onboarding screens. Updated composable breakdown trees (SetYourNameScreen, AddAnAccountScreen) and design token tables (Feature Slides, Set Your Name, Add an Account): "App logo" → "Capital wordmark", "Logo" → "Wordmark" in row labels and notes. |

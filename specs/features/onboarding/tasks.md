@@ -1,11 +1,11 @@
 # Onboarding — Tasks
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-31
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-08
 
 ---
 
@@ -823,7 +823,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Details:
   Full-screen composable. Background: `color.accent.primary`. No `Scaffold` — custom layout.
 
-  Top: App logo PNG image, centered, top padding `spacing.xl` (32dp).
+  Top: Capital wordmark, centered, top padding `spacing.xl` (32dp).
 
   `HorizontalPager` with `PagerState(pageCount = 3)`. Each page renders `OnboardingSlide` with the corresponding illustration, title, and message from `strings.xml`. Slide transition animation: 250ms horizontal slide, follows swipe direction.
 
@@ -856,7 +856,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Details:
   Full-screen composable. Background: `color.background.primary`. No `Scaffold`.
 
-  Top: App logo PNG, centered, top padding `spacing.xl` (32dp). Bottom margin below logo: `spacing.xxl` (48dp).
+  Top: Capital wordmark, centered, top padding `spacing.xl` (32dp). Bottom margin below wordmark: `spacing.xxl` (48dp).
 
   Display Name `BasicTextField` (not `OutlinedTextField` — transparent background with bottom border only):
   - Font: Inter, 28sp, weight 400
@@ -892,7 +892,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Details:
   Full-screen composable. Background: `color.background.primary`. Scrollable `Column` to handle small screens with the Credit Limit field visible.
 
-  Top: App logo PNG, centered, top padding `spacing.xl`. Below logo: encouraging copy `Text` (`color.text.secondary`, Body typography, centered), bottom margin `spacing.lg`.
+  Top: Capital wordmark, centered, top padding `spacing.xl`. Below wordmark: encouraging copy `Text` (`color.text.secondary`, Body typography, centered), bottom margin `spacing.lg`.
 
   `AccountFormFields` composable wired to ViewModel state:
   - Pass all field values from `uiState`
@@ -1023,3 +1023,4 @@ This group implements the three onboarding screen composables. Each screen is wi
 | 0.3.0 | 2026-05-31 | Danielle Mariani | TSK-ON-04: expand to create OnboardingModule.kt and document @Binds pattern for repositories. TSK-ON-05/06/07: add explicit DatabaseModule updates for provideWorkspaceDao, provideCategoryDao, provideAccountDao. TSK-ON-09: add @Binds registration step in OnboardingModule. TSK-ON-13B (new): implement PreferencesDataSource as centralized SharedPreferences wrapper in core/data/. TSK-ON-11: update to inject PreferencesDataSource instead of Context directly. TSK-ON-15: update to inject PreferencesDataSource; clarify MainActivity is a temporary empty placeholder with TODO comment. TSK-ON-16: add explicit InitializationRetried event handling; extract initialize() private function to avoid duplication. Summary table updated with TSK-ON-13B row. |
 | 0.4.0 | 2026-06-05 | Danielle Mariani | Rename app package from com.dmariani.budgetapp to com.dmariani.capital throughout all file paths and code snippets. Rename BudgetApp.kt to CapitalApp.kt and update AndroidManifest reference. Rename BudgetAppTheme to AppTheme. Rename SharedPreferences file name from "budget_app_prefs" to "capital_prefs". Remove "temporary" note from applicationId — com.dmariani.capital is the confirmed package name. Rename Room database from "budget_app.db" to "capital.db" in TSK-ON-05. |
 | 0.5.0 | 2026-06-05 | Danielle Mariani | Add cross-field Credit Limit validation (BR-AC-04, BR-ON-09): TSK-ON-14 — add `onboarding_error_credit_limit_below_balance` string resource. TSK-ON-16 — update Account form validation: `isAccountFormValid` requires Credit Limit ≥ Initial Balance for Credit Card; add `CreditLimitFocusLost` event; add blur validation logic for `creditLimitBelowBalanceError`. TSK-ON-23 — add 4 unit test cases for blur validation and `isAccountFormValid` with cross-field error. |
+| 0.6.0 | 2026-06-08 | Danielle Mariani | TSK-ON-20, TSK-ON-21, TSK-ON-22: replace "App logo PNG" with "Capital wordmark" in implementation details. Update "logo" → "wordmark" in associated margin/padding references. |
