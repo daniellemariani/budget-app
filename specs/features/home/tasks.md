@@ -1,11 +1,11 @@
 # Home — Tasks
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
 **Created at:** 2026-06-05
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-08
 
 ---
 
@@ -71,7 +71,9 @@ Each task follows this structure:
 
 ## Group 1 — Resources
 
-String resources and drawable assets that all Home shell composables depend on. Must be in place before any UI task begins.
+String resources that all Home shell composables depend on. Must be in place before any UI task begins.
+
+Note: The Borel font asset and `FontFamily` definition are defined in `specs/design/design.md` and are registered as part of the design system setup, not here. `AppHeader` imports `BorelFontFamily` from the design system's typography definitions in `core/ui/theme/`.
 
 ---
 
@@ -79,14 +81,12 @@ String resources and drawable assets that all Home shell composables depend on. 
 - Effort: S
 - Phase: 1
 - Group: Resources
-- Requirements: RQ-HM-04, RQ-HM-05, RQ-HM-07
+- Requirements: RQ-HM-04, RQ-HM-05, RQ-HM-06, RQ-HM-09
 - Acceptance Criteria: —
 - Status: Not Started
 - Depends on: TSK-ON-01 (project skeleton exists)
 - Creates:
   - Additions to `android/app/src/main/res/values/strings.xml`
-  - `android/app/src/main/res/drawable/ic_wordmark.xml` (light theme wordmark)
-  - `android/app/src/main/res/drawable-night/ic_wordmark.xml` (dark theme wordmark)
 - Details:
   Add the following string entries to `strings.xml`. Do not create a separate file — append to the existing onboarding strings file under a `<!-- Home / Navigation -->` comment block:
 
@@ -101,11 +101,7 @@ String resources and drawable assets that all Home shell composables depend on. 
   <string name="app_name">Capital</string>
   ```
 
-  Wordmark assets (`ic_wordmark.xml`): placeholder vector drawables at this stage — a simple text path or rectangle is acceptable. Final branded assets are provided by design before the public launch. Two variants are required from day one so the theme-switching mechanism works correctly:
-  - `res/drawable/ic_wordmark.xml` — for light theme
-  - `res/drawable-night/ic_wordmark.xml` — for dark theme
-
-  Android resolves the correct variant automatically based on `UiMode`. No runtime switching logic is needed in code.
+  `app_name` is used as the text content for the Dashboard header label and as the `contentDescription` for accessibility on that label. All other strings serve as both tab accessibility descriptions (bottom nav icons) and header labels for non-Dashboard tabs.
 
 ---
 
@@ -119,26 +115,29 @@ Route constants and the `AppNavGraph` shell. These are the structural backbone o
 - Effort: S
 - Phase: 1
 - Group: Navigation Foundation
-- Requirements: RQ-HM-07
+- Requirements: RQ-HM-09
 - Acceptance Criteria: AC-HM-01, AC-HM-02
 - Status: Not Started
 - Depends on: TSK-ON-01
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/app/TopLevelDestination.kt`
 - Details:
-  Single source of truth for the five tab routes. Defined as a sealed class in the `app/` package — not inside any feature package.
+  Single source of truth for the five tab routes and their string resource references. Defined as a sealed class in the `app/` package — not inside any feature package.
 
   ```kotlin
-  sealed class TopLevelDestination(val route: String) {
-      object Dashboard    : TopLevelDestination("dashboard")
-      object Accounts     : TopLevelDestination("accounts")
-      object Transactions : TopLevelDestination("transactions")
-      object Budgets      : TopLevelDestination("budgets")
-      object Goals        : TopLevelDestination("goals")
+  sealed class TopLevelDestination(
+      val route: String,
+      @StringRes val labelRes: Int
+  ) {
+      object Dashboard    : TopLevelDestination("dashboard",    R.string.nav_dashboard)
+      object Accounts     : TopLevelDestination("accounts",     R.string.nav_accounts)
+      object Transactions : TopLevelDestination("transactions", R.string.nav_transactions)
+      object Budgets      : TopLevelDestination("budgets",      R.string.nav_budgets)
+      object Goals        : TopLevelDestination("goals",        R.string.nav_goals)
   }
   ```
 
-  Settings is intentionally excluded — it is a non-tab destination and its route is defined in `feature/settings/ui/SettingsDestination.kt` (Settings feature spec). Feature-internal sub-routes (e.g. `AccountsDestination.Detail`) are also defined inside their respective feature packages and must not appear here.
+  `labelRes` is used by `AppHeader` to resolve the tab name for non-Dashboard tabs, and by `BottomNavigationBar` for icon `contentDescription`. Settings is intentionally excluded — it is a non-tab destination and its route is defined in `feature/settings/ui/SettingsDestination.kt` (Settings feature spec).
 
 ---
 
@@ -146,8 +145,8 @@ Route constants and the `AppNavGraph` shell. These are the structural backbone o
 - Effort: M
 - Phase: 1
 - Group: Navigation Foundation
-- Requirements: RQ-HM-01, RQ-HM-02, RQ-HM-07, RQ-HM-12
-- Acceptance Criteria: AC-HM-01, AC-HM-02, AC-HM-06, AC-HM-07
+- Requirements: RQ-HM-01, RQ-HM-02, RQ-HM-09, RQ-HM-15
+- Acceptance Criteria: AC-HM-01, AC-HM-02, AC-HM-11, AC-HM-12
 - Status: Not Started
 - Depends on: TSK-HM-02, TSK-HM-06
 - Creates:
@@ -212,7 +211,6 @@ Route constants and the `AppNavGraph` shell. These are the structural backbone o
           }
           // Settings — registered here; destination composable owned by Settings feature spec
           composable(SettingsDestination.route) {
-              // Placeholder until Settings feature is implemented
               TabPlaceholder(labelRes = R.string.settings)
           }
       }
@@ -236,14 +234,14 @@ The `BottomNavigationBar` and `AppHeader` composables. Both are app-level UI com
 - Effort: M
 - Phase: 1
 - Group: UI Shell
-- Requirements: RQ-HM-07, RQ-HM-08, RQ-HM-09, RQ-HM-10, RQ-HM-11
-- Acceptance Criteria: AC-HM-02, AC-HM-03, AC-HM-04, AC-HM-05, AC-HM-10, AC-HM-11
+- Requirements: RQ-HM-09, RQ-HM-10, RQ-HM-11, RQ-HM-12, RQ-HM-13, RQ-HM-14
+- Acceptance Criteria: AC-HM-02, AC-HM-05, AC-HM-06, AC-HM-07, AC-HM-08, AC-HM-15, AC-HM-16
 - Status: Not Started
 - Depends on: TSK-HM-01, TSK-HM-02
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/app/ui/BottomNavigationBar.kt`
 - Details:
-  Implement `BottomNavItem` data class and `BottomNavigationBar` composable as specified in `design.md`.
+  Implement `BottomNavItem` data class and `BottomNavigationBar` composable as specified in `design.md`. Icon-only — no text labels.
 
   ```kotlin
   data class BottomNavItem(
@@ -256,15 +254,17 @@ The `BottomNavigationBar` and `AppHeader` composables. Both are app-level UI com
 
   The five `BottomNavItem` entries are defined inside the composable as a remembered list. Icon identifiers (filled and outlined variants from Material Symbols) are confirmed at implementation time — use the closest available Material Icons as stand-ins if the exact Symbols variants are not yet available.
 
+  Set `label = null` on every `NavigationBarItem` — this suppresses tab text labels entirely. The `contentDescription` on the `Icon` composable (sourced from `item.labelRes`) ensures accessibility is maintained for screen readers.
+
   Active tab detection must use `currentDestination?.hierarchy` (not direct route equality) so nested destinations within a tab (e.g. Account Detail) keep the correct tab highlighted.
 
   All colors must use `MaterialTheme.colorScheme` tokens — no hardcoded values:
   - `selectedIconColor` → `MaterialTheme.colorScheme.primary`
-  - `selectedTextColor` → `MaterialTheme.colorScheme.primary`
   - `unselectedIconColor` → `MaterialTheme.colorScheme.onSurfaceVariant`
-  - `unselectedTextColor` → `MaterialTheme.colorScheme.onSurfaceVariant`
   - `indicatorColor` → `MaterialTheme.colorScheme.secondaryContainer`
   - `containerColor` (NavigationBar) → `MaterialTheme.colorScheme.surface`
+
+  Do not set `selectedTextColor` or `unselectedTextColor` — labels are not rendered.
 
   Scroll-to-top on re-selection: `onTabSelected` is always called on tap (including when the tab is already active). `launchSingleTop = true` in the nav graph prevents a duplicate back stack entry. The scroll-to-top side effect is handled inside each feature's root list composable via `LaunchedEffect` — not here.
 
@@ -274,31 +274,54 @@ The `BottomNavigationBar` and `AppHeader` composables. Both are app-level UI com
 - Effort: S
 - Phase: 1
 - Group: UI Shell
-- Requirements: RQ-HM-03, RQ-HM-04, RQ-HM-05, RQ-HM-06
-- Acceptance Criteria: AC-HM-09, AC-HM-10, AC-HM-11
+- Requirements: RQ-HM-03, RQ-HM-04, RQ-HM-05, RQ-HM-06, RQ-HM-07, RQ-HM-08
+- Acceptance Criteria: AC-HM-03, AC-HM-04, AC-HM-09, AC-HM-10, AC-HM-14, AC-HM-15, AC-HM-16
 - Status: Not Started
-- Depends on: TSK-HM-01
+- Depends on: TSK-HM-01, TSK-HM-02
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/app/ui/AppHeader.kt`
 - Details:
-  Implement `AppHeader` as a `TopAppBar` composable. Accepts `onSettingsClick: () -> Unit` lambda — the composable has no knowledge of the `NavController`.
+  Implement `AppHeader` as a `TopAppBar` composable. Accepts `currentDestination: NavDestination?`, `onSettingsClick: () -> Unit`, and `scrollBehavior: TopAppBarScrollBehavior`. The composable has no knowledge of `NavController` directly.
 
   ```kotlin
+  @OptIn(ExperimentalMaterial3Api::class)
   @Composable
   fun AppHeader(
+      currentDestination: NavDestination?,
       onSettingsClick: () -> Unit,
+      scrollBehavior: TopAppBarScrollBehavior,
       modifier: Modifier = Modifier
   )
   ```
 
-  Wordmark: `Image` composable using `painterResource(R.drawable.ic_wordmark)`. Height fixed at `24.dp`. `contentDescription` = `stringResource(R.string.app_name)`. No click action.
+  **Active tab detection:**
+  ```kotlin
+  val isDashboard = currentDestination?.hierarchy?.any {
+      it.route == TopLevelDestination.Dashboard.route
+  } == true
+  ```
 
-  Gear icon: `Icons.Outlined.Settings`. `contentDescription` = `stringResource(R.string.settings)`. `onClick` invokes `onSettingsClick`.
+  **Title slot — Dashboard:**
+  Wrap in `Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center)`.
+  Render `Text(text = stringResource(R.string.app_name), fontFamily = BorelFontFamily, fontSize = 26.sp, color = MaterialTheme.colorScheme.onSurface)`.
+  `BorelFontFamily` is imported from the design system — do not construct it inline.
 
-  Colors via `TopAppBarDefaults.topAppBarColors`:
+  **Title slot — non-Dashboard tabs:**
+  Resolve the label resource from `TopLevelDestination.entries` by matching against `currentDestination?.hierarchy`. Fall back to `R.string.app_name` if no match is found.
+  Render `Text(text = stringResource(labelRes), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)`.
+
+  **Actions slot:**
+  Render `IconButton` with `Icons.Outlined.Settings` only when `isDashboard == true`. When `isDashboard == false`, the `actions` block is empty — no invisible placeholder rendered.
+  `contentDescription` for gear icon = `stringResource(R.string.settings)`.
+
+  **Colors via `TopAppBarDefaults.topAppBarColors`:**
   - `containerColor` → `MaterialTheme.colorScheme.surface`
   - `titleContentColor` → `MaterialTheme.colorScheme.onSurface`
   - `actionIconContentColor` → `MaterialTheme.colorScheme.onSurfaceVariant`
+
+  **Scroll behavior:** Pass `scrollBehavior` directly to `TopAppBar`. The `nestedScroll` connection is wired at the `Scaffold` level in `MainActivity` — no additional setup needed here.
+
+  **Label centering note:** `TopAppBar`'s `title` slot left-aligns by default. The `Box(fillMaxWidth, Alignment.Center)` wrapper achieves true screen-centered alignment regardless of whether the gear icon is present or absent in the `actions` slot.
 
 ---
 
@@ -312,8 +335,8 @@ The single reusable placeholder composable. Must exist before `AppNavGraph` can 
 - Effort: S
 - Phase: 1
 - Group: Placeholder Screen
-- Requirements: RQ-HM-12, RQ-HM-13, RQ-HM-15
-- Acceptance Criteria: AC-HM-07
+- Requirements: RQ-HM-15, RQ-HM-16, RQ-HM-18
+- Acceptance Criteria: AC-HM-12
 - Status: Not Started
 - Depends on: TSK-HM-01
 - Creates:
@@ -359,8 +382,8 @@ Assembles the full `MainActivity` shell using all components built in Groups 1�
 - Effort: M
 - Phase: 1
 - Group: MainActivity Assembly
-- Requirements: RQ-HM-01, RQ-HM-02, RQ-HM-03, RQ-HM-05, RQ-HM-14, RQ-HM-15
-- Acceptance Criteria: AC-HM-01, AC-HM-02, AC-HM-06, AC-HM-07, AC-HM-08, AC-HM-09, AC-HM-10, AC-HM-11
+- Requirements: RQ-HM-01, RQ-HM-02, RQ-HM-03, RQ-HM-06, RQ-HM-07, RQ-HM-17, RQ-HM-18
+- Acceptance Criteria: AC-HM-01, AC-HM-02, AC-HM-03, AC-HM-04, AC-HM-09, AC-HM-10, AC-HM-11, AC-HM-12, AC-HM-13, AC-HM-14, AC-HM-15, AC-HM-16
 - Status: Not Started
 - Depends on: TSK-HM-03, TSK-HM-04, TSK-HM-05, TSK-HM-06
 - Creates:
@@ -378,8 +401,10 @@ Assembles the full `MainActivity` shell using all components built in Groups 1�
   Inside `setContent`:
   - `rememberNavController()` for the `NavHostController`
   - `currentBackStackEntryAsState()` to observe `currentDestination`
+  - `TopAppBarDefaults.enterAlwaysScrollBehavior()` for `scrollBehavior`
   - `Scaffold` with:
-    - `topBar`: `AppHeader(onSettingsClick = { navController.navigate(SettingsDestination.route) })`
+    - `modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)`
+    - `topBar`: `AppHeader(currentDestination, onSettingsClick = { navController.navigate(SettingsDestination.route) }, scrollBehavior)`
     - `bottomBar`: `BottomNavigationBar(currentDestination, onTabSelected = { ... })`
     - Content: `AppNavGraph(navController, Modifier.padding(innerPadding))`
 
@@ -408,8 +433,8 @@ Assembles the full `MainActivity` shell using all components built in Groups 1�
 - Effort: M
 - Phase: 1
 - Group: Testing
-- Requirements: RQ-HM-07, RQ-HM-08, RQ-HM-09, RQ-HM-04, RQ-HM-05
-- Acceptance Criteria: AC-HM-02, AC-HM-03, AC-HM-04, AC-HM-09
+- Requirements: RQ-HM-09, RQ-HM-10, RQ-HM-11, RQ-HM-12, RQ-HM-04, RQ-HM-05, RQ-HM-06
+- Acceptance Criteria: AC-HM-02, AC-HM-03, AC-HM-04, AC-HM-05, AC-HM-06, AC-HM-07, AC-HM-14
 - Status: Not Started
 - Depends on: TSK-HM-04, TSK-HM-05, TSK-HM-06
 - Creates:
@@ -417,18 +442,18 @@ Assembles the full `MainActivity` shell using all components built in Groups 1�
   - `android/app/src/test/java/com/dmariani/capital/app/ui/AppHeaderTest.kt`
   - `android/app/src/test/java/com/dmariani/capital/feature/home/ui/TabPlaceholderTest.kt`
 - Details:
-  Use Compose testing APIs (`createComposeRule`, `onNodeWithContentDescription`, `performClick`, `assertIsDisplayed`).
+  Use Compose testing APIs (`createComposeRule`, `onNodeWithContentDescription`, `onNodeWithText`, `performClick`, `assertIsDisplayed`, `assertDoesNotExist`).
 
   **`BottomNavigationBarTest`:**
   - Active tab item shows filled icon and primary color token
   - Inactive tab items show outlined icon and `onSurfaceVariant` color token
+  - No text label node is present for any tab item
   - `onTabSelected` lambda is invoked with the correct `TopLevelDestination` when a tab is tapped
   - Tapping the already-active tab still invokes `onTabSelected` (scroll-to-top responsibility lives upstream)
 
   **`AppHeaderTest`:**
-  - Wordmark image is displayed (`contentDescription` = app name string)
-  - Gear icon button is present (`contentDescription` = settings string)
-  - `onSettingsClick` lambda is invoked when gear icon is tapped
+  - When `currentDestination` is Dashboard: "Capital" text node is present; gear icon button is present; `onSettingsClick` is invoked on gear icon tap
+  - When `currentDestination` is a non-Dashboard tab: tab name text node is present; gear icon is not present; `onSettingsClick` is not invoked on any tap
 
   **`TabPlaceholderTest`:**
   - Label string is rendered for a given `labelRes`
@@ -441,8 +466,8 @@ Assembles the full `MainActivity` shell using all components built in Groups 1�
 - Effort: M
 - Phase: 1
 - Group: Testing
-- Requirements: RQ-HM-01, RQ-HM-02, RQ-HM-11, RQ-HM-14, RQ-HM-15, RQ-HM-16, RQ-HM-17
-- Acceptance Criteria: AC-HM-01, AC-HM-02, AC-HM-05, AC-HM-06, AC-HM-07, AC-HM-08
+- Requirements: RQ-HM-01, RQ-HM-02, RQ-HM-14, RQ-HM-17, RQ-HM-18, RQ-HM-19, RQ-HM-20
+- Acceptance Criteria: AC-HM-01, AC-HM-02, AC-HM-03, AC-HM-04, AC-HM-08, AC-HM-11, AC-HM-12, AC-HM-13
 - Status: Not Started
 - Depends on: TSK-HM-07
 - Creates:
@@ -451,8 +476,9 @@ Assembles the full `MainActivity` shell using all components built in Groups 1�
   Instrumented tests using `ActivityScenario<MainActivity>` and Compose testing APIs. Requires `onboarding_completed = true` in SharedPreferences before each test — set via a `@Before` rule that writes directly to SharedPreferences using the test application context.
 
   Test cases:
-  - App launches with Dashboard tab active and shell elements visible (header, bottom nav)
-  - Tapping each non-active tab switches to that tab's placeholder screen
+  - App launches with Dashboard tab active; header shows "Capital" and gear icon; bottom nav shows Dashboard icon in filled state
+  - Tapping each non-active tab switches to that tab's placeholder screen; header updates to show tab name; gear icon is not visible
+  - Returning to Dashboard tab: header shows "Capital" and gear icon again
   - Re-selecting the active tab does not add a new entry to the back stack (`navController.backQueue.size` unchanged)
   - Back press on a non-Dashboard tab navigates to Dashboard tab
   - Back press on Dashboard tab exits the app (activity finishes)
@@ -466,3 +492,4 @@ Assembles the full `MainActivity` shell using all components built in Groups 1�
 | Version | Date | Author | Notes |
 |---|---|---|---|
 | 0.1.0 | 2026-06-05 | Danielle Mariani | Initial draft. 9 tasks across 6 groups. No data layer tasks — Home is UI-only. Group 0 (Project Foundation) delegated to onboarding tasks. |
+| 0.2.0 | 2026-06-08 | Danielle Mariani | TSK-HM-01: remove wordmark drawable asset creation — header now uses Text composable, no image asset required. Add note re: Borel font deferral to design.md. TSK-HM-02: add `labelRes` property to `TopLevelDestination` sealed class. TSK-HM-04: update `BottomNavigationBar` — set `label = null` on all `NavigationBarItem`s; remove `selectedTextColor`/`unselectedTextColor` from color tokens. Update requirements and AC references. TSK-HM-05: full rewrite of `AppHeader` — replace `Image` wordmark with context-sensitive `Text`; add `currentDestination` and `scrollBehavior` parameters; add Dashboard vs non-Dashboard label/icon logic; add `enterAlwaysScrollBehavior` wiring; add centering note. TSK-HM-07: add `scrollBehavior` creation and `Modifier.nestedScroll` to `Scaffold`; update `AppHeader` call signature. TSK-HM-08: update `AppHeaderTest` cases for new context-sensitive behavior; add no-label assertion to `BottomNavigationBarTest`. TSK-HM-09: update integration test cases to cover header label switching and gear icon visibility per tab. |

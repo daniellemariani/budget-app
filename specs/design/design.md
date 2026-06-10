@@ -1,16 +1,16 @@
-# Design System — Budget App
+# Design System — Capital
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-27
-**Last Updated:** 2026-05-27
+**Last Updated:** 2026-06-08
 
 ---
 
 ## Overview
 
-This document defines the visual design system, UX principles, theming strategy, and cross-platform UI guidelines for Budget App.
+This document defines the visual design system, UX principles, theming strategy, and cross-platform UI guidelines for Capital.
 
 The goal of the design system is to create a calm, trustworthy, and highly readable financial experience that scales consistently across Android, Web, and future Flutter/KMP clients.
 
@@ -58,7 +58,7 @@ This document is intentionally implementation-agnostic. It defines visual and in
 
 ## Design Philosophy
 
-Budget App is designed around the concept of:
+Capital is designed around the concept of:
 
 > Calm Financial Control
 
@@ -194,7 +194,7 @@ The following applications represent strong visual references for Budget App:
 - Monarch Money — dashboard composition and financial summaries
 - Wallet by BudgetBakers — information architecture and budgeting UX
 
-These references are directional inspiration only. Budget App maintains its own identity and implementation.
+These references are directional inspiration only. Capital maintains its own identity and implementation.
 
 ---
 
@@ -314,6 +314,50 @@ Fallback stack: `Inter, Roboto, system-ui, sans-serif`
 **Android note:** Inter is not a system font on Android. It must be bundled explicitly — either as a downloadable font via the Google Fonts provider (preferred for bundle size) or as a local asset in the `res/font/` directory. Do not assume it will be available as a system font on any Android version.
 
 **Web note:** Inter is loaded from Google Fonts. Include the variable font (`Inter:wght@100..900`) to avoid loading multiple weight files.
+
+---
+
+### Display / Brand Font
+
+**Borel** is the display font used exclusively for the app name "Capital" in the `AppHeader` on the Dashboard tab. It is not used anywhere else in the UI.
+
+Borel is a cursive display typeface that gives the brand name visual personality and distinction from the Inter-based UI. It must not be applied to any general UI text, labels, or financial data.
+
+**Android registration:**
+
+1. Download the Borel font file (`Borel-Regular.ttf`) from Google Fonts.
+2. Place it at `android/app/src/main/res/font/borel_regular.ttf`.
+3. Create a font resource XML file at `android/app/src/main/res/font/borel.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font
+        android:font="@font/borel_regular"
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        app:font="@font/borel_regular"
+        app:fontStyle="normal"
+        app:fontWeight="400" />
+</font-family>
+```
+
+4. Define the `FontFamily` in the design system's typography file (`core/ui/theme/Type.kt`):
+
+```kotlin
+val BorelFontFamily = FontFamily(
+    Font(R.font.borel_regular, FontWeight.Normal)
+)
+```
+
+5. `BorelFontFamily` is imported from `core/ui/theme/` wherever needed. It must not be redeclared inline in individual composables.
+
+**Usage:** `AppHeader` applies `BorelFontFamily` at `26.sp` for the "Capital" label on the Dashboard tab only. This value may be adjusted at implementation time after visual QA.
+
+**Web note:** Borel is available on Google Fonts. Load it as a display font alongside Inter. Apply only to the equivalent of the app name header element.
+
+**Minimum size:** Do not render Borel at less than `20.sp` / `20px` — the cursive letterforms lose legibility at small sizes.
 
 ---
 
@@ -700,7 +744,7 @@ Future additions must remain consistent with the core philosophy defined in this
 
 ## Guiding Principle
 
-Budget App should help users understand their finances clearly and confidently.
+Capital should help users understand their finances clearly and confidently.
 
 The interface should reduce mental friction, support long-term usage, and communicate financial information in a calm, structured, and trustworthy way.
 
@@ -714,3 +758,4 @@ The product should feel dependable before it feels impressive.
 |---|---|---|---|
 | 0.1.0 | 2026-05-27 | Danielle Mariani | Initial draft — design philosophy, principles, color system, typography scale (roles only), spacing, component patterns, motion, accessibility, platform adaptation, and design tokens. |
 | 0.2.0 | 2026-05-27 | Danielle Mariani | Revise primary accent: `#0F766E` → `#0D7377` (light), `#2DD4BF` → `#2EB5AC` (dark) — same teal family, consistent brand identity across modes. Fix Surface Alt dark: `#273244` → `#1C2434` (neutral, no blue cast). Add `color.accent.on` token to both themes. Add Dark Mode Strategy section. Add token column to color tables. Add Iconography section (Material Symbols / Tabler, sizing, usage rules). Expand Typography Scale with concrete sizes, weights, and line heights. Add Android font bundling note and web variable font note. Add Financial Number Formatting section (currency, negative values, percentages, alignment). Add `spacing.xxs` (2dp) micro-spacing token. Make Radius tokens concrete with values and usage. Add Progress Bar spending threshold table (accent / warning / error at 85% and 100%). Add Color Independence Rule table with secondary signals. Add Material 3 color role mapping table. Add Sync Indicators state table. Add changelog. |
+| 0.3.0 | 2026-06-08 | Danielle Mariani | Add Display / Brand Font section: Borel, Android registration steps (`res/font/borel_regular.ttf`, `borel.xml`, `BorelFontFamily` val in `core/ui/theme/Type.kt`), usage constraints (Dashboard AppHeader only, 26sp, minimum 20sp), web note. Rename document title and all "Budget App" references to "Capital". |

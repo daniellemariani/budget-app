@@ -14,14 +14,14 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 - specs/technical/data-model.md — complete v0.7.0
 - specs/technical/offline-sync.md — complete v0.4.0
 - specs/technical/api-contract.md — complete v0.5.0
-- specs/design/navigation.md — complete v0.6.0
-- specs/design/design.md — complete (design system tokens, typography, spacing, elevation, Material 3 mapping)
+- specs/design/navigation.md — complete v0.7.0
+- specs/design/design.md — complete v0.3.0 (design system tokens, typography, spacing, elevation, Material 3 mapping, Borel font registration)
 - specs/features/onboarding/requirements.md — complete v0.4.0
 - specs/features/onboarding/design.md — complete v0.5.0
 - specs/features/onboarding/tasks.md — complete v0.6.0
-- specs/features/home/requirements.md — complete v0.3.0
-- specs/features/home/design.md — complete v0.2.0
-- specs/features/home/tasks.md — complete v0.1.0
+- specs/features/home/requirements.md — complete v0.4.0
+- specs/features/home/design.md — complete v0.3.0
+- specs/features/home/tasks.md — complete v0.2.0
 - All other feature specs — not started
 
 ## Key Technical Decisions Made
@@ -592,7 +592,7 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 ## Next Session
 Start a new chat. Paste CONTEXT.md to restore full context.
 
-**Current state:** Home feature spec is complete (requirements.md v0.3.0, design.md v0.2.0, tasks.md v0.1.0). Onboarding feature spec is complete (requirements.md v0.4.0, design.md v0.5.0, tasks.md v0.6.0). All cross-file updates applied: navigation.md v0.6.0, ARCHITECTURE.md v1.0.3, SPEC.md v1.0.5, CONTEXT.md updated. App name: **Capital**. Package name: `com.dmariani.capital`. Database: `capital.db`. Onboarding screens (Feature Slides, Set Your Name, Add an Account) updated to display the Capital wordmark instead of the app logo.
+**Current state:** Home feature spec is complete (requirements.md v0.4.0, design.md v0.3.0, tasks.md v0.2.0). Onboarding feature spec is complete (requirements.md v0.4.0, design.md v0.5.0, tasks.md v0.6.0). All cross-file updates applied: navigation.md v0.7.0, design.md v0.3.0, ARCHITECTURE.md v1.0.3, SPEC.md v1.0.5, CONTEXT.md updated. App name: **Capital**. Package name: `com.dmariani.capital`. Database: `capital.db`. Home shell redesign decisions confirmed: AppHeader uses context-sensitive Text composable (Borel "Capital" centered on Dashboard; Inter tab name centered on other tabs; gear icon Dashboard only); auto-hide scroll behavior via `enterAlwaysScrollBehavior` on all tabs; bottom nav is icon-only (no labels). Borel font registration defined in design.md v0.3.0. Onboarding screens use Capital wordmark (Text composable) instead of app logo image asset.
 
 **Next spec to write:** Accounts feature
 - `specs/features/accounts/requirements.md`

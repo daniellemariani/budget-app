@@ -1,10 +1,10 @@
 # Navigation Spec — Capital
 
-**Version:** 0.6.0
+**Version:** 0.7.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-23
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-08
 
 ---
 
@@ -99,7 +99,7 @@ Empty state anatomy: illustration placeholder + headline + subtext + primary CTA
 Sub-screens (detail screens, creation forms, and edit forms) are displayed full-screen within `MainActivity`. This is a global pattern that applies across all features.
 
 **What changes on a sub-screen:**
-- The shell `Header` (app wordmark + gear icon) is not visible
+- The shell `AppHeader` (context-sensitive label + optional gear icon) is not visible
 - The `BottomNavigationBar` is not visible
 - A feature-owned top bar replaces the shell header, containing:
   - **Back arrow** (left) — tapping it triggers the same behavior as the system back button or back gesture, popping the current screen from the stack
@@ -157,8 +157,8 @@ OnboardingActivity         — shown only on first launch; no bottom nav, no hea
     └── OnboardingNavHost  — manages onboarding screen flow
 
 MainActivity               — all post-onboarding screens
-    ├── Header             — App wordmark (logo) left, gear icon (Settings) right
-    ├── BottomNavigationBar — 5 destinations, each with icon + label
+    ├── AppHeader          — context-sensitive label (centered) + optional gear icon (right, Dashboard only)
+    ├── BottomNavigationBar — 5 destinations, icon only (no labels)
     └── MainNavHost        — manages all feature screen flows
 ```
 
@@ -168,18 +168,23 @@ MainActivity               — all post-onboarding screens
 
 ### Header
 
-Present on all MainActivity screens. Not present during onboarding.
+Present on all tab root screens within `MainActivity`. Not present during onboarding or on sub-screens. The header auto-hides when the user scrolls down and reappears when the user scrolls up (`enterAlwaysScrollBehavior`), on all tabs.
 
-| Element | Position | Behavior |
-|---|---|---|
-| App wordmark (logo) | Left | Static image asset — no tap action |
-| Gear icon | Right | Navigates to Settings screen |
+| Active tab | Label | Label font | Gear icon |
+|---|---|---|---|
+| Dashboard | "Capital" | Borel | Visible (right) — navigates to Settings |
+| Accounts | "Accounts" | Inter | Hidden |
+| Transactions | "Transactions" | Inter | Hidden |
+| Budgets | "Budgets" | Inter | Hidden |
+| Goals | "Goals" | Inter | Hidden |
+
+The label is centered horizontally in all cases. It is a `Text` composable — not a static image asset. No tap action on the label.
 
 ### Bottom Navigation Bar
 
-Five destinations. Each has an icon and a text label.
+Five destinations. Icon only — no text labels displayed. The active tab's name is communicated by the header label instead. Icon `contentDescription` values ensure screen reader accessibility.
 
-| Position | Label | Icon | Destination |
+| Position | Tab | Icon | Destination |
 |---|---|---|---|
 | 1 | Dashboard | Home icon | Dashboard screen |
 | 2 | Accounts | Wallet icon | Accounts list screen |
@@ -690,8 +695,8 @@ flowchart TD
   %% ── MAIN ACTIVITY ────────────────────────────────────────
   subgraph MA["MainActivity"]
     direction TB
-    HDR["Header — app wordmark (logo) + gear icon"]
-    BNAV["Bottom nav — Dashboard · Accounts · Transactions · Budgets · Goals"]
+    HDR["AppHeader — 'Capital' (Borel, centered) on Dashboard · tab name (Inter, centered) on other tabs · gear icon on Dashboard only"]
+    BNAV["Bottom nav (icon only) — Dashboard · Accounts · Transactions · Budgets · Goals"]
     HDR -- "gear icon" --> SET
 
     %% ── DASHBOARD ──────────────────────────────────────────
@@ -821,3 +826,4 @@ flowchart TD
 | 0.4.0 | 2026-05-27 | Danielle Mariani | Add Navigation Diagram section with Mermaid flowchart covering: app launch decision tree (Phase 1 + Phase 2 session check), OnboardingActivity flow, MainActivity shell and all five bottom nav destinations (Dashboard, Accounts, Transactions, Budgets, Goals), Workspace Management (Categories, Merchants, Currency, Members), Settings (Display Name, About, Clear Data), and Web Phase 3 sidebar destinations. Color key included in section header. |
 | 0.5.0 | 2026-05-31 | Danielle Mariani | Correct onboarding_completed flag timing. Flag is set when the user taps Continue on Set Your Name — not on Account Setup completion or skip. Updated: App Launch Logic prose, Account Setup screen description, and Mermaid diagram (arrow label moved from AS_OB → MA to SN → AS_OB). |
 | 0.6.0 | 2026-06-05 | Danielle Mariani | Add Sub-Screen Navigation global pattern: sub-screens are full-screen; shell header and bottom nav not present; feature-owned top bar with back arrow, screen title, and optional actions. Update Header table: "App name" row → "App wordmark (logo)", static image asset, no tap action. Update App Structure block: header description updated to match. Update MainActivity note: replace TBD bottom nav suppression note with reference to Sub-Screen Navigation pattern. Update Mermaid diagram: header label updated. Add specs/features/home/requirements.md and specs/features/settings/requirements.md to Related Documents. Resolve open questions: full-screen forms bottom nav visibility (resolved via Sub-Screen Navigation pattern), app name (Capital — canonical definition in SPEC.md). Rename document title from "Budget App" to "Capital". |
+| 0.7.0 | 2026-06-08 | Danielle Mariani | Header redesign: replace static wordmark table with context-sensitive table — Dashboard shows "Capital" in Borel (centered), non-Dashboard tabs show tab name in Inter (centered); gear icon on Dashboard only. Add auto-hide scroll behavior note (enterAlwaysScrollBehavior, all tabs). Bottom nav redesign: icon-only, no text labels; update table and section prose. Update App Structure code block. Update Sub-Screen Navigation: rename `Header` → `AppHeader`. Update Mermaid diagram: HDR node label and BNAV node label updated. |

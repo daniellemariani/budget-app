@@ -1,11 +1,11 @@
 # Home — Design
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
 **Created at:** 2026-06-05
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-08
 
 ---
 
@@ -22,7 +22,7 @@ This document is the implementation reference for the Home feature. All decision
 | Document | Purpose |
 |---|---|
 | specs/features/home/requirements.md | Functional requirements and acceptance criteria |
-| specs/design/design.md | Design system — color tokens, typography, spacing, iconography |
+| specs/design/design.md | Design system — color tokens, typography, spacing, iconography, font registration (Borel) |
 | navigation.md | Navigation flows, app launch logic, screen inventory |
 | ARCHITECTURE.md | Android stack, MVVM + Clean Architecture, package structure |
 
@@ -30,19 +30,20 @@ This document is the implementation reference for the Home feature. All decision
 
 ## Architecture Overview
 
-Home runs entirely within `MainActivity`. Unlike `OnboardingActivity`, `MainActivity` is not self-contained — it is the permanent host for all post-onboarding feature screens. The shell provides the `Header`, the `BottomNavigationBar`, and the `MainNavHost`. All five tab destinations are registered in `AppNavGraph` as nested navigation graphs, each owned by its respective feature. Settings is also registered in `AppNavGraph` as a non-tab destination reachable from the header gear icon.
+Home runs entirely within `MainActivity`. Unlike `OnboardingActivity`, `MainActivity` is not self-contained — it is the permanent host for all post-onboarding feature screens. The shell provides the `AppHeader`, the `BottomNavigationBar`, and the `MainNavHost`. All five tab destinations are registered in `AppNavGraph` as nested navigation graphs, each owned by its respective feature. Settings is also registered in `AppNavGraph` as a non-tab destination reachable from the header gear icon.
 
 ```
 MainActivity
-    ├── Header
-    │       ├── App wordmark (left) — static, no action
-    │       └── Gear icon (right) — navigates to Settings
+    ├── AppHeader
+    │       ├── "Capital" label (Borel, centered) — Dashboard tab only
+    │       ├── Tab name label (Inter, centered) — non-Dashboard tabs
+    │       └── Gear icon (right) — Dashboard tab only, navigates to Settings
     ├── BottomNavigationBar
-    │       ├── Dashboard    (tab 1 — default)
-    │       ├── Accounts     (tab 2)
-    │       ├── Transactions (tab 3)
-    │       ├── Budgets      (tab 4)
-    │       └── Goals        (tab 5)
+    │       ├── Dashboard    (tab 1 — default, icon only)
+    │       ├── Accounts     (tab 2, icon only)
+    │       ├── Transactions (tab 3, icon only)
+    │       ├── Budgets      (tab 4, icon only)
+    │       └── Goals        (tab 5, icon only)
     └── MainNavHost
             ├── dashboardNavGraph()     ──► feature/dashboard/
             ├── accountsNavGraph()      ──► feature/accounts/
@@ -55,10 +56,11 @@ MainActivity
 **Key architectural constraints:**
 
 - `MainActivity` reads `PreferencesDataSource.isOnboardingCompleted()` on `onCreate`. If `false`, it immediately starts `OnboardingActivity`, finishes itself, and returns. This guard is a safety net only — the normal path always arrives at `MainActivity` from `OnboardingActivity` after `onboarding_completed = true` is set.
-- The `BottomNavigationBar` and `Header` are rendered by `MainActivity` directly, not by any individual feature. Features do not control shell visibility at the tab root level.
+- The `BottomNavigationBar` and `AppHeader` are rendered by `MainActivity` directly, not by any individual feature. Features do not control shell visibility at the tab root level.
 - Sub-screens within each feature navigate into a full-screen destination that suppresses the shell (bottom nav and shell header not present). Sub-screen top bars are defined and owned per feature spec. See `navigation.md` — Global Navigation Patterns for the sub-screen top bar convention.
 - No ViewModel is scoped to `MainActivity` in Phase 1. The shell has no business logic or data dependencies.
 - `AppNavGraph` is the single place that imports and wires all feature nav graphs. Features never import each other.
+- `AppHeader` receives the current active destination as a parameter and derives its label text and gear icon visibility from it — it does not observe `NavController` directly.
 
 ---
 
@@ -70,8 +72,8 @@ app/
 ├── AppNavGraph.kt                     # Composes all feature nested nav graphs
 ├── TopLevelDestination.kt             # Sealed class for the 5 tab routes
 ├── ui/
-│   ├── BottomNavigationBar.kt         # Bottom nav composable
-│   └── Header.kt                      # App wordmark + gear icon composable
+│   ├── BottomNavigationBar.kt         # Bottom nav composable (icon-only)
+│   └── AppHeader.kt                   # Context-sensitive header composable
 
 feature/home/
 ├── ui/
@@ -81,7 +83,7 @@ feature/home/
 
 **Notes:**
 
-- `MainActivity.kt`, `AppNavGraph.kt`, `TopLevelDestination.kt`, `BottomNavigationBar.kt`, and `Header.kt` live in the `app/` package — they are app-level concerns, not feature-level.
+- `MainActivity.kt`, `AppNavGraph.kt`, `TopLevelDestination.kt`, `BottomNavigationBar.kt`, and `AppHeader.kt` live in the `app/` package — they are app-level concerns, not feature-level.
 - A single `TabPlaceholder` composable covers all five tab placeholder screens. It accepts a `@StringRes labelRes: Int` parameter and renders the tab name centered on the screen. One file replaces five — deleted entirely once all features are implemented.
 - Each feature's root Composable (e.g. `AccountsScreen.kt`) lives in its own feature package (`feature/accounts/ui/`). `AppNavGraph` imports it directly.
 - No interface or abstract class is defined for feature root Composables. The contract is enforced by convention: each feature exposes one public `@Composable` function that accepts navigation lambdas (no `NavController` passed directly into the Composable).
@@ -151,14 +153,19 @@ All top-level destinations (one per tab) are defined as a sealed class in the `a
 
 ```kotlin
 // app/TopLevelDestination.kt
-sealed class TopLevelDestination(val route: String) {
-    object Dashboard    : TopLevelDestination("dashboard")
-    object Accounts     : TopLevelDestination("accounts")
-    object Transactions : TopLevelDestination("transactions")
-    object Budgets      : TopLevelDestination("budgets")
-    object Goals        : TopLevelDestination("goals")
+sealed class TopLevelDestination(
+    val route: String,
+    @StringRes val labelRes: Int
+) {
+    object Dashboard    : TopLevelDestination("dashboard",    R.string.nav_dashboard)
+    object Accounts     : TopLevelDestination("accounts",     R.string.nav_accounts)
+    object Transactions : TopLevelDestination("transactions", R.string.nav_transactions)
+    object Budgets      : TopLevelDestination("budgets",      R.string.nav_budgets)
+    object Goals        : TopLevelDestination("goals",        R.string.nav_goals)
 }
 ```
+
+`labelRes` is used by `AppHeader` to derive the tab name for non-Dashboard tabs. It is also retained in `BottomNavItem` for accessibility `contentDescription` on icon-only nav items.
 
 Settings is not a tab destination and is therefore not included in `TopLevelDestination`. Its route is defined in its own feature package (`feature/settings/ui/SettingsDestination.kt`) and registered directly in `AppNavGraph` via `settingsNavGraph()`.
 
@@ -224,6 +231,8 @@ Sub-screen destinations use `navController.popBackStack()` via the `onNavigateBa
 
 ## BottomNavigationBar
 
+Icon-only navigation — no text labels rendered. The `labelRes` on each `BottomNavItem` is retained solely for accessibility `contentDescription`.
+
 ```kotlin
 // app/ui/BottomNavigationBar.kt
 
@@ -264,12 +273,10 @@ fun BottomNavigationBar(
                         contentDescription = stringResource(item.labelRes)
                     )
                 },
-                label = { Text(stringResource(item.labelRes)) },
+                label = null,
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     indicatorColor = MaterialTheme.colorScheme.secondaryContainer
                 )
             )
@@ -277,6 +284,8 @@ fun BottomNavigationBar(
     }
 }
 ```
+
+**Icon-only:** `label = null` suppresses the text label entirely. The `contentDescription` on each `Icon` ensures screen reader accessibility is maintained.
 
 **Icon selection:** Material Symbols provides filled and outlined variants for all five icons. The `selectedIcon` uses the filled variant; `unselectedIcon` uses the outlined variant. Final icon identifiers are confirmed at implementation time.
 
@@ -286,45 +295,85 @@ fun BottomNavigationBar(
 
 ---
 
-## Header
+## AppHeader
+
+The header is context-sensitive: its label text and the visibility of the gear icon both depend on which tab is currently active.
+
+The header uses `TopAppBarScrollBehavior` with `enterAlwaysScrollBehavior()` — it hides when the user scrolls down and re-enters when the user scrolls up. The `scrollBehavior` is created in `MainActivity` and passed down to both `AppHeader` and the `Scaffold`'s `topBar`. The `Scaffold` content must apply `Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)` for the scroll interaction to wire correctly.
+
+**Scroll behavior note:** In Phase 1, placeholder tab screens have no scrollable content — the auto-hide behavior will not visually trigger on placeholder screens. This is acceptable. The behavior is structurally in place from the start; full functional verification is deferred to the point at which each feature's real list content is implemented. The scroll behavior must be fully functional across all tabs by the end of Phase 1.
 
 ```kotlin
-// app/ui/Header.kt
+// app/ui/AppHeader.kt
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppHeader(
+    currentDestination: NavDestination?,
     onSettingsClick: () -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior,
     modifier: Modifier = Modifier
 ) {
+    val isDashboard = currentDestination?.hierarchy?.any {
+        it.route == TopLevelDestination.Dashboard.route
+    } == true
+
     TopAppBar(
         title = {
-            Image(
-                painter = painterResource(id = R.drawable.ic_wordmark),
-                contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.height(24.dp)
-            )
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isDashboard) {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        fontFamily = BorelFontFamily,
+                        fontSize = 26.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                } else {
+                    val labelRes = TopLevelDestination.entries
+                        .firstOrNull { dest ->
+                            currentDestination?.hierarchy?.any { it.route == dest.route } == true
+                        }?.labelRes ?: R.string.app_name
+                    Text(
+                        text = stringResource(labelRes),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
         },
         actions = {
-            IconButton(onClick = onSettingsClick) {
-                Icon(
-                    imageVector = Icons.Outlined.Settings,
-                    contentDescription = stringResource(R.string.settings)
-                )
+            if (isDashboard) {
+                IconButton(onClick = onSettingsClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.settings)
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        ),
+        scrollBehavior = scrollBehavior,
+        modifier = modifier
     )
 }
 ```
 
-`onSettingsClick` is passed down from `MainActivity`, which calls `navController.navigate(SettingsDestination.route)`.
+**Label centering:** The `title` slot of `TopAppBar` does not center its content by default — it left-aligns. Wrapping the `Text` in a `Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth())` achieves true screen-centered alignment independent of the gear icon's presence or absence.
 
-**Wordmark asset:** `R.drawable.ic_wordmark` — a vector or PNG logotype asset. Two variants are required: `res/drawable/ic_wordmark.xml` (light theme) and `res/drawable-night/ic_wordmark.xml` (dark theme). Android resolves the correct variant automatically based on the active system theme.
+**Borel font:** `BorelFontFamily` is defined in `specs/design/design.md` and imported from the design system's typography definitions. It must not be constructed inline in this file.
 
-**Gear icon:** `Icons.Outlined.Settings` from Material Symbols. Navigates to the Settings screen. The `contentDescription` ensures accessibility compliance.
+**Label size:** "Capital" in Borel is rendered at `26.sp`. Non-Dashboard tab names use `MaterialTheme.typography.titleLarge` (Inter). Both values may be adjusted at implementation time to match visual QA.
+
+**Gear icon visibility:** `actions` block renders the `IconButton` only when `isDashboard` is `true`. On non-Dashboard tabs the `actions` slot is empty — no invisible placeholder is rendered.
+
+**`BorelFontFamily` import:** The `BorelFontFamily` val is defined once in the design system (`core/ui/theme/`) and imported here. Do not redeclare it in `AppHeader.kt`.
 
 ---
 
@@ -352,13 +401,17 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
+                val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
                 Scaffold(
+                    modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
                     topBar = {
                         AppHeader(
+                            currentDestination = currentDestination,
                             onSettingsClick = {
                                 navController.navigate(SettingsDestination.route)
-                            }
+                            },
+                            scrollBehavior = scrollBehavior
                         )
                     },
                     bottomBar = {
@@ -386,6 +439,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 ```
+
+**`scrollBehavior`** is created at the `MainActivity` level so that both `AppHeader` and `Scaffold` share the same instance. The `Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)` on `Scaffold` connects the scroll interaction from the tab content up through to the header.
 
 **Phase 2 note:** When Supabase Auth is introduced, `onCreate` gains a second condition: check for a valid session after `isOnboardingCompleted()`. If no valid session exists, the user is navigated to the Login screen. No structural change to `MainActivity` is needed — the guard chain is extended.
 
@@ -455,7 +510,7 @@ class MainActivity : ComponentActivity() {
 
 ### Shell Visibility on Sub-Screens
 
-Sub-screens (Account Detail, Budget Detail, creation forms, etc.) must be displayed full-screen with no bottom nav and no shell header. This is achieved by registering sub-screen destinations within the `NavHost` — they are full-screen composables that draw edge-to-edge and define their own `TopAppBar` (back arrow + screen title). The shell `Header` and `BottomNavigationBar` remain in the composition at the `Scaffold` level but are visually covered by the sub-screen.
+Sub-screens (Account Detail, Budget Detail, creation forms, etc.) must be displayed full-screen with no bottom nav and no shell header. This is achieved by registering sub-screen destinations within the `NavHost` — they are full-screen composables that draw edge-to-edge and define their own `TopAppBar` (back arrow + screen title). The shell `AppHeader` and `BottomNavigationBar` remain in the composition at the `Scaffold` level but are visually covered by the sub-screen.
 
 The exact implementation strategy (e.g. whether to conditionally suppress shell elements or rely on visual coverage) is deferred to the Accounts feature spec, which introduces the first sub-screen. The same pattern applies to Budgets, Transactions, and Goals.
 
@@ -492,15 +547,15 @@ The Home shell has no data operations and therefore no error states in Phase 1. 
 
 | Class | What to test |
 |---|---|
-| `BottomNavigationBar` | Active tab shows filled icon and primary color. Inactive tabs show outlined icon and `onSurfaceVariant` color. `onTabSelected` lambda is called with the correct `TopLevelDestination` on tap. |
-| `AppHeader` | Wordmark image is rendered. Gear icon button is present. `onSettingsClick` lambda is invoked on gear icon tap. |
+| `BottomNavigationBar` | Active tab shows filled icon and primary color. Inactive tabs show outlined icon and `onSurfaceVariant` color. No text label is rendered for any tab item. `onTabSelected` lambda is called with the correct `TopLevelDestination` on tap. |
+| `AppHeader` | On Dashboard: "Capital" label is rendered in Borel font, centered; gear icon is present. On non-Dashboard tab: tab name label is rendered in Inter, centered; no gear icon is present. `onSettingsClick` lambda is invoked when gear icon is tapped (Dashboard only). |
 | `TabPlaceholder` | Label string is rendered correctly. `BackHandler` is registered when `onNavigateToDashboard` is non-null. No `BackHandler` when `null` is passed. |
 
 ### Integration Tests
 
 | Scope | What to test |
 |---|---|
-| `MainActivity` + `AppNavGraph` | Tapping each tab renders the correct placeholder (or real screen). Re-selecting active tab does not add to the back stack. Back press on non-Dashboard tab navigates to Dashboard. Back press on Dashboard tab exits the app. Back stack per tab is saved and restored on tab switch. Tapping gear icon navigates to Settings. |
+| `MainActivity` + `AppNavGraph` | Tapping each tab renders the correct placeholder (or real screen). Header label updates to match the active tab. Gear icon visible on Dashboard, hidden on all other tabs. Re-selecting active tab does not add to the back stack. Back press on non-Dashboard tab navigates to Dashboard. Back press on Dashboard tab exits the app. Back stack per tab is saved and restored on tab switch. Tapping gear icon navigates to Settings. |
 
 ### UI Tests
 
@@ -520,3 +575,4 @@ Deferred — consistent with the global testing strategy in `ARCHITECTURE.md`.
 |---|---|---|---|
 | 0.1.0 | 2026-06-05 | Danielle Mariani | Initial draft |
 | 0.2.0 | 2026-06-05 | Danielle Mariani | Settings is Phase 1: gear icon navigates to Settings screen; `settingsNavGraph()` added to `AppNavGraph`; `onSettingsClick` lambda added to `AppHeader`. Replaced five individual placeholder composables with a single reusable `TabPlaceholder` accepting `@StringRes labelRes` and optional `onNavigateToDashboard` lambda. Removed "(Option A)" from Nested Nav Graphs section title. Renamed `CapitalTheme` to `AppTheme` throughout for app-name agnosticism. |
+| 0.3.0 | 2026-06-08 | Danielle Mariani | Header redesign: replace static `Image` wordmark with context-sensitive `Text` composable. Dashboard tab renders "Capital" in `BorelFontFamily` at 26sp, centered. Non-Dashboard tabs render tab name using `MaterialTheme.typography.titleLarge` (Inter), centered. Gear icon rendered in `actions` slot on Dashboard only; `actions` slot empty on non-Dashboard tabs. Add `TopAppBarScrollBehavior` with `enterAlwaysScrollBehavior()` — header hides on scroll down, reappears on scroll up, all tabs. `scrollBehavior` created in `MainActivity`, passed to `AppHeader` and `Scaffold`. `Modifier.nestedScroll` applied to `Scaffold`. Add scroll behavior note re: Phase 1 placeholder screens. `TopLevelDestination` sealed class updated to include `labelRes` property. `BottomNavigationBar`: set `label = null` on all `NavigationBarItem`s (icon-only); remove `selectedTextColor` and `unselectedTextColor` from `NavigationBarItemDefaults.colors`. `AppHeader` receives `currentDestination: NavDestination?` parameter (replaces no context parameter). Architecture diagram updated. Component structure: `Header.kt` renamed to `AppHeader.kt`. Unit and integration test tables updated. |
