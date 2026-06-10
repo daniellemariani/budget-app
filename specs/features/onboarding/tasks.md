@@ -1,6 +1,6 @@
 # Onboarding — Tasks
 
-**Version:** 0.6.0
+**Version:** 0.7.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
@@ -229,7 +229,7 @@ This group creates the Android project skeleton. No onboarding-specific code is 
   - Light: `AccentPrimary = Color(0xFF0D7377)`, `AccentOn = Color(0xFFFFFFFF)`, `BackgroundPrimary = Color(0xFFF7F8FA)`, `SurfaceCard = Color(0xFFFFFFFF)`, `SurfaceAlt = Color(0xFFF1F3F5)`, `BorderDefault = Color(0xFFE2E8F0)`, `TextPrimary = Color(0xFF111827)`, `TextSecondary = Color(0xFF6B7280)`, `SemanticSuccess = Color(0xFF16A34A)`, `SemanticError = Color(0xFFDC2626)`, `SemanticWarning = Color(0xFFD97706)`, `SemanticInfo = Color(0xFF2563EB)`
   - Dark: `AccentPrimary = Color(0xFF2EB5AC)`, `AccentOn = Color(0xFF0A2E2D)`, `BackgroundPrimary = Color(0xFF111827)`, `SurfaceCard = Color(0xFF1F2937)`, `SurfaceAlt = Color(0xFF1C2434)`, `BorderDefault = Color(0xFF374151)`, `TextPrimary = Color(0xFFF3F4F6)`, `TextSecondary = Color(0xFF9CA3AF)`, `SemanticSuccess = Color(0xFF4ADE80)`, `SemanticError = Color(0xFFF87171)`, `SemanticWarning = Color(0xFFFBBF24)`, `SemanticInfo = Color(0xFF60A5FA)`
 
-  **`Type.kt`** — define `Typography` using Inter font with the scale from `design.md` (Display 32sp/600, Headline 22sp/600, Title 17sp/600, Body 15sp/400, Label 13sp/500, Caption 11sp/400). Use `FontFamily` with the Inter downloadable font.
+  **`Type.kt`** — define `Typography` using Inter font with the scale from `design.md` (Display 32sp/600, Headline 22sp/600, Title 17sp/600, Body 15sp/400, Label 13sp/500, Caption 11sp/400). Use `FontFamily` with the Inter downloadable font. Also define `BorelFontFamily` here (see `specs/design/design.md` — Display / Brand Font section for the full registration steps: `res/font/borel_regular.ttf` + `res/font/borel.xml` + `val BorelFontFamily = FontFamily(Font(R.font.borel_regular, FontWeight.Normal))`). `BorelFontFamily` must be defined once in this file and imported wherever used — never redeclared inline.
 
   **`Theme.kt`** — define `AppTheme` composable that applies `MaterialTheme` with the correct `ColorScheme` (light/dark) and `Typography`. Map Budget App tokens to Material 3 roles as defined in `design.md` (Platform Adaptation section).
 
@@ -823,7 +823,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Details:
   Full-screen composable. Background: `color.accent.primary`. No `Scaffold` — custom layout.
 
-  Top: Capital wordmark, centered, top padding `spacing.xl` (32dp).
+  Top: `Text(text = stringResource(R.string.app_name), fontFamily = BorelFontFamily, fontSize = 26.sp, color = MaterialTheme.colorScheme.onSurface)`, centered via `Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center)`, top padding `spacing.xl` (32dp). `BorelFontFamily` is imported from `core/ui/theme/Type.kt` — do not redeclare inline.
 
   `HorizontalPager` with `PagerState(pageCount = 3)`. Each page renders `OnboardingSlide` with the corresponding illustration, title, and message from `strings.xml`. Slide transition animation: 250ms horizontal slide, follows swipe direction.
 
@@ -856,7 +856,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Details:
   Full-screen composable. Background: `color.background.primary`. No `Scaffold`.
 
-  Top: Capital wordmark, centered, top padding `spacing.xl` (32dp). Bottom margin below wordmark: `spacing.xxl` (48dp).
+  Top: `Text(text = stringResource(R.string.app_name), fontFamily = BorelFontFamily, fontSize = 26.sp, color = MaterialTheme.colorScheme.onSurface)`, centered via `Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center)`, top padding `spacing.xl` (32dp). Bottom margin below label: `spacing.xxl` (48dp). `BorelFontFamily` is imported from `core/ui/theme/Type.kt` — do not redeclare inline.
 
   Display Name `BasicTextField` (not `OutlinedTextField` — transparent background with bottom border only):
   - Font: Inter, 28sp, weight 400
@@ -892,7 +892,7 @@ This group implements the three onboarding screen composables. Each screen is wi
 - Details:
   Full-screen composable. Background: `color.background.primary`. Scrollable `Column` to handle small screens with the Credit Limit field visible.
 
-  Top: Capital wordmark, centered, top padding `spacing.xl`. Below wordmark: encouraging copy `Text` (`color.text.secondary`, Body typography, centered), bottom margin `spacing.lg`.
+  Top: `Text(text = stringResource(R.string.app_name), fontFamily = BorelFontFamily, fontSize = 26.sp, color = MaterialTheme.colorScheme.onSurface)`, centered via `Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center)`, top padding `spacing.xl`. Below label: encouraging copy `Text` (`color.text.secondary`, Body typography, centered), bottom margin `spacing.lg`. `BorelFontFamily` is imported from `core/ui/theme/Type.kt` — do not redeclare inline.
 
   `AccountFormFields` composable wired to ViewModel state:
   - Pass all field values from `uiState`
@@ -1024,3 +1024,4 @@ This group implements the three onboarding screen composables. Each screen is wi
 | 0.4.0 | 2026-06-05 | Danielle Mariani | Rename app package from com.dmariani.budgetapp to com.dmariani.capital throughout all file paths and code snippets. Rename BudgetApp.kt to CapitalApp.kt and update AndroidManifest reference. Rename BudgetAppTheme to AppTheme. Rename SharedPreferences file name from "budget_app_prefs" to "capital_prefs". Remove "temporary" note from applicationId — com.dmariani.capital is the confirmed package name. Rename Room database from "budget_app.db" to "capital.db" in TSK-ON-05. |
 | 0.5.0 | 2026-06-05 | Danielle Mariani | Add cross-field Credit Limit validation (BR-AC-04, BR-ON-09): TSK-ON-14 — add `onboarding_error_credit_limit_below_balance` string resource. TSK-ON-16 — update Account form validation: `isAccountFormValid` requires Credit Limit ≥ Initial Balance for Credit Card; add `CreditLimitFocusLost` event; add blur validation logic for `creditLimitBelowBalanceError`. TSK-ON-23 — add 4 unit test cases for blur validation and `isAccountFormValid` with cross-field error. |
 | 0.6.0 | 2026-06-08 | Danielle Mariani | TSK-ON-20, TSK-ON-21, TSK-ON-22: replace "App logo PNG" with "Capital wordmark" in implementation details. Update "logo" → "wordmark" in associated margin/padding references. |
+| 0.7.0 | 2026-06-08 | Danielle Mariani | TSK-ON-03: add `BorelFontFamily` definition to `Type.kt` (font file, XML descriptor, FontFamily val, single-declaration rule). TSK-ON-20, TSK-ON-21, TSK-ON-22: replace "Capital wordmark, centered" with full `Text` composable implementation detail (BorelFontFamily, 26sp, Box centering, import rule). Consistent with AppHeader in home-tasks.md. |

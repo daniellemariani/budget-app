@@ -16,9 +16,9 @@ Paste this file at the start of any new Claude or Cursor session to restore proj
 - specs/technical/api-contract.md — complete v0.5.0
 - specs/design/navigation.md — complete v0.7.0
 - specs/design/design.md — complete v0.3.0 (design system tokens, typography, spacing, elevation, Material 3 mapping, Borel font registration)
-- specs/features/onboarding/requirements.md — complete v0.4.0
-- specs/features/onboarding/design.md — complete v0.5.0
-- specs/features/onboarding/tasks.md — complete v0.6.0
+- specs/features/onboarding/requirements.md — complete v0.5.0
+- specs/features/onboarding/design.md — complete v0.6.0
+- specs/features/onboarding/tasks.md — complete v0.7.0
 - specs/features/home/requirements.md — complete v0.4.0
 - specs/features/home/design.md — complete v0.3.0
 - specs/features/home/tasks.md — complete v0.2.0
@@ -349,7 +349,7 @@ Full contract defined in specs/technical/api-contract.md v0.4.1. Key decisions:
 - Flutter/KMP (Phase 4): expected to mirror Android — local DB first, sync engine for propagation
 
 ### Navigation Decisions
-Navigation structure defined in specs/design/navigation.md v0.6.0. Key decisions:
+Navigation structure defined in specs/design/navigation.md v0.7.0. Key decisions:
 
 - Android uses two activity contexts: OnboardingActivity (first launch only) and MainActivity (all post-onboarding screens)
 - `onboarding_completed` boolean stored in SharedPreferences; read on every app launch via `PreferencesDataSource` to determine whether to show OnboardingActivity or go directly to MainActivity
@@ -364,7 +364,7 @@ Navigation structure defined in specs/design/navigation.md v0.6.0. Key decisions
 - TopLevelDestination sealed class (app/ package) is the single source of truth for the 5 tab routes
 - Back stack per tab preserved via saveState/restoreState on tab selection
 - Sub-screens are full-screen: shell header and bottom nav not present; feature-owned top bar (back arrow + screen title + optional actions) replaces shell header
-- Header: app wordmark (logo) left, gear icon (Settings) right — not shown during onboarding
+- AppHeader: context-sensitive Text composable — "Capital" (Borel, centered) on Dashboard + gear icon; tab name (Inter, centered) on other tabs, no gear icon. Auto-hides on scroll down, reappears on scroll up (enterAlwaysScrollBehavior). Not shown during onboarding.
 - Workspace Management screen accessible via Manage button on Dashboard: Categories, Merchants, Currency (read-only Phase 1), Members (Phase 2)
 - Settings is personal only: Display Name, About, Version, Clear Data
 - Speed Dial FAB on Transactions (Add Transaction, Add Transfer) and Accounts (Add Checking, Add Savings, Add Cash, Add Credit Card)
@@ -592,7 +592,7 @@ Test coverage targets and CI configuration defined at Phase 2 kickoff.
 ## Next Session
 Start a new chat. Paste CONTEXT.md to restore full context.
 
-**Current state:** Home feature spec is complete (requirements.md v0.4.0, design.md v0.3.0, tasks.md v0.2.0). Onboarding feature spec is complete (requirements.md v0.4.0, design.md v0.5.0, tasks.md v0.6.0). All cross-file updates applied: navigation.md v0.7.0, design.md v0.3.0, ARCHITECTURE.md v1.0.3, SPEC.md v1.0.5, CONTEXT.md updated. App name: **Capital**. Package name: `com.dmariani.capital`. Database: `capital.db`. Home shell redesign decisions confirmed: AppHeader uses context-sensitive Text composable (Borel "Capital" centered on Dashboard; Inter tab name centered on other tabs; gear icon Dashboard only); auto-hide scroll behavior via `enterAlwaysScrollBehavior` on all tabs; bottom nav is icon-only (no labels). Borel font registration defined in design.md v0.3.0. Onboarding screens use Capital wordmark (Text composable) instead of app logo image asset.
+**Current state:** Home feature spec is complete (requirements.md v0.4.0, design.md v0.3.0, tasks.md v0.2.0). Onboarding feature spec is complete (requirements.md v0.5.0, design.md v0.6.0, tasks.md v0.7.0). All cross-file updates applied: navigation.md v0.7.0, design.md v0.3.0, ARCHITECTURE.md v1.0.3, SPEC.md v1.0.5, CONTEXT.md updated. App name: **Capital**. Package name: `com.dmariani.capital`. Database: `capital.db`. "Capital" label across all onboarding screens (Feature Slides, Set Your Name, Add an Account) and the Dashboard AppHeader is a `Text` composable using `BorelFontFamily` — not an image asset. `BorelFontFamily` defined once in `core/ui/theme/Type.kt`. Bottom nav is icon-only (no labels).
 
 **Next spec to write:** Accounts feature
 - `specs/features/accounts/requirements.md`

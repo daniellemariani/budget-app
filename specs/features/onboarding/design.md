@@ -1,6 +1,6 @@
 # Onboarding — Design
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
@@ -266,6 +266,7 @@ Both keys are written atomically in a single SharedPreferences `edit { ... }` bl
 
 ```
 FeatureSlidesScreen
+    ├── Text — "Capital" (BorelFontFamily, centered, top)
     ├── HorizontalPager (Compose Accompanist or native Compose)
     │       └── OnboardingSlide (×3)
     │               ├── Image / illustration placeholder (centered, large)
@@ -346,8 +347,8 @@ sealed class OnboardingSideEffect {
 |---|---|---|
 | Screen background | `color.accent.primary` | Full-screen fill. Applies to all 3 slides uniformly. |
 | All text (title, body, buttons) | `color.accent.on` | White on accent background |
-| Capital wordmark top padding | `spacing.xl` (32dp) | From status bar to top of wordmark |
-| Wordmark bottom margin | `spacing.lg` (24dp) | Between wordmark and illustration |
+| Capital wordmark top padding | `spacing.xl` (32dp) | From status bar to top of "Capital" Text composable (BorelFontFamily) |
+| Wordmark bottom margin | `spacing.lg` (24dp) | Between "Capital" label and HorizontalPager |
 | Illustration area | Fills remaining space between wordmark and copy | Centered, scales with screen height |
 | Slide title | Typography: Headline (22sp, weight 600) | `color.accent.on` |
 | Slide key message | Typography: Body (15sp, weight 400) | `color.accent.on`, `spacing.xs` below title |
@@ -370,7 +371,7 @@ sealed class OnboardingSideEffect {
 
 ```
 SetYourNameScreen
-    ├── Image — Capital wordmark (top, centered)
+    ├── Text — "Capital" (BorelFontFamily, centered, top)
     ├── BasicTextField — Display Name input
     │       └── Large, transparent background, bottom border only
     ├── Text — privacy copy (Caption style, secondary color)
@@ -408,8 +409,8 @@ On `ContinueWithName`:
 | Element | Token | Notes |
 |---|---|---|
 | Screen background | `color.background.primary` | Light background — signals transition into the app |
-| Capital wordmark top padding | `spacing.xl` (32dp) | From status bar to top of wordmark |
-| Wordmark bottom margin | `spacing.xxl` (48dp) | Generous space between wordmark and name field |
+| Capital wordmark top padding | `spacing.xl` (32dp) | From status bar to top of "Capital" Text composable (BorelFontFamily) |
+| Wordmark bottom margin | `spacing.xxl` (48dp) | Generous space between "Capital" label and name field |
 | Display Name field font size | 28sp, weight 400 | Larger than Body scale — intentionally prominent. Uses Inter. |
 | Display Name field text color | `color.text.primary` | |
 | Display Name field background | Transparent | Bottom border only: `color.border.default` at 1dp |
@@ -431,7 +432,7 @@ On `ContinueWithName`:
 
 ```
 AddAnAccountScreen
-    ├── Image — Capital wordmark (top, centered)
+    ├── Text — "Capital" (BorelFontFamily, centered, top)
     ├── Text — encouraging copy (Body style)
     ├── AccountFormFields                   # shared composable from core/ui/
     │       ├── OutlinedTextField — Account Name
@@ -501,8 +502,8 @@ On `GoToHome`:
 | Element | Token | Notes |
 |---|---|---|
 | Screen background | `color.background.primary` | |
-| Capital wordmark top padding | `spacing.xl` (32dp) | |
-| Wordmark bottom margin | `spacing.lg` (24dp) | Between wordmark and encouraging copy |
+| Capital wordmark top padding | `spacing.xl` (32dp) | From status bar to top of "Capital" Text composable (BorelFontFamily) |
+| Wordmark bottom margin | `spacing.lg` (24dp) | Between "Capital" label and encouraging copy |
 | Encouraging copy | Typography: Body (15sp, weight 400) | `color.text.secondary`, centered |
 | Encouraging copy bottom margin | `spacing.lg` (24dp) | Between copy and form |
 | Form horizontal padding | `spacing.md` (16dp) | Left and right screen inset |
@@ -875,3 +876,4 @@ Deferred — consistent with the global testing strategy in `ARCHITECTURE.md`. U
 | 0.3.0 | 2026-05-31 | Danielle Mariani | Introduce `PreferencesDataSource` as centralized SharedPreferences wrapper in `core/data/`. Update Architecture Overview: all SharedPreferences access goes through `PreferencesDataSource`, no direct access anywhere. Update Component Structure: add `di/OnboardingModule.kt`, update `OnboardingActivity` and `SaveDisplayNameUseCase` comments. Update `OnboardingActivity` snippet: inject `PreferencesDataSource` via `@Inject`, call `isOnboardingCompleted()`. Rewrite Dependency Injection section: split into `DatabaseModule` and `OnboardingModule` (abstract class with `@Binds` + companion `@Provides`); use cases use constructor injection. Update Atomic SharedPreferences Write: centralized in `PreferencesDataSource.saveDisplayName`. Update Testing Strategy rows for `SaveDisplayNameUseCase` and SharedPreferences integration. |
 | 0.4.0 | 2026-06-05 | Danielle Mariani | Add cross-field Credit Limit validation (BR-AC-04): Credit Limit must be ≥ Initial Balance for Credit Card accounts. Add `creditLimitBelowBalanceError` field to `OnboardingUiState`. Add validation step 5 to Currency Input Parsing. Add `creditLimitBelowBalanceError` param to `AccountFormFields`. Add new error row to Error Handling table. Add `onboarding_error_credit_limit_below_balance` string resource. Update `OnboardingViewModel` testing strategy with blur and `isAccountFormValid` cases. Fix `BudgetAppTheme` → `AppTheme` in `OnboardingActivity` snippet. |
 | 0.5.0 | 2026-06-08 | Danielle Mariani | Replace app logo with Capital wordmark across all three onboarding screens. Updated composable breakdown trees (SetYourNameScreen, AddAnAccountScreen) and design token tables (Feature Slides, Set Your Name, Add an Account): "App logo" → "Capital wordmark", "Logo" → "Wordmark" in row labels and notes. |
+| 0.6.0 | 2026-06-08 | Danielle Mariani | Replace "Capital wordmark" image references with `Text` composable using `BorelFontFamily`. FeatureSlidesScreen composable tree: add `Text — "Capital" (BorelFontFamily, centered, top)` node above HorizontalPager. SetYourNameScreen and AddAnAccountScreen composable trees: `Image — Capital wordmark` → `Text — "Capital" (BorelFontFamily, centered, top)`. All three spacing tables: wordmark notes updated to reference "Capital" Text composable with BorelFontFamily. Consistent with AppHeader implementation in home-design.md. |
