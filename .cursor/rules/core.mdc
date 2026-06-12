@@ -1,0 +1,84 @@
+---
+description: Core project context and global rules for Capital
+alwaysApply: true
+---
+
+# Capital — Budget App
+
+## Project Overview
+
+Capital is an offline-first personal finance Android app. Monorepo layout:
+
+```
+android/    — Kotlin + Jetpack Compose (Phase 1, active)
+backend/    — Python + FastAPI (Phase 2, not started)
+web/        — React + TypeScript (Phase 3, not started)
+specs/      — All feature and technical specs (source of truth)
+```
+
+Current phase: **Phase 1 — Android offline only.**
+
+## Spec-Driven Development
+
+All behavior is defined in specs before implementation. Before writing any code:
+
+1. Read the relevant feature spec: `specs/features/[feature]/requirements.md`
+2. Read the solution design: `specs/features/[feature]/design.md`
+3. Follow the task list exactly: `specs/features/[feature]/tasks.md`
+
+**Do not invent behavior, add fields, or deviate from specs.** If a spec is ambiguous, stop and ask — do not assume.
+
+Business rule IDs (BR-XX-NN) are canonical. Never rename or renumber them.
+
+## Package Name
+
+`com.dmariani.capital` — use this in all generated Kotlin files.
+
+## Global Data Rules (non-negotiable)
+
+- All primary keys: UUID v4 (TEXT), generated client-side
+- All amounts: INTEGER in cents — never REAL, never float
+- All dates: INTEGER Unix timestamp in UTC
+- Soft delete only — `deleted_at` timestamp; never hard delete (BR-DI-01)
+- `created_at` and `updated_at` on every entity (BR-DI-02)
+- `workspace_id` FK on every financial entity
+- `sync_status` (TEXT, nullable) and `last_synced_at` (INTEGER, nullable) on every entity — null in Phase 1, active in Phase 2
+- **Derived values are never persisted**: account balance, goal progress, budget spent, net worth — always computed at query time
+
+## Naming Conventions
+
+- Kotlin files: PascalCase (e.g. `TransactionViewModel.kt`)
+- Feature folders: lowercase hyphenated (e.g. `recurring-transactions/`)
+- Entities: singular PascalCase (`Transaction`, not `Transactions`)
+- IDs: never renumbered once assigned
+
+## Strings and SharedPreferences
+
+- All UX copy lives in `strings.xml` — no hardcoded strings in Kotlin
+- All SharedPreferences keys defined in `PreferenceKeys` object (`core/data/`)
+- All SharedPreferences access goes through `PreferencesDataSource` (`core/data/`)
+
+## Git
+
+- Conventional Commits format
+- Feature branches: `feature/xxx`
+- Spec changes and code changes in separate commits
+
+### Git Commit Standards
+- Follow Conventional Commits: feat:, fix:, chore:, docs:, refactor:
+- Scope commits to the affected module: feat(android):, feat(ios):, feat(web):, feat(backend):, docs:
+- The title must be under 50 characters and in the present tense
+- Separate title from body with a blank line
+- Use a bulleted list in the body for multiple changes
+- Each commit must represent a single logical change
+- Avoid mixing refactor + feature in the same commit
+- Ensure commits are meaningful and reviewable
+
+## What NOT to do
+
+- Do not add fields not in the spec
+- Do not persist derived values
+- Do not write SharedPreferences directly — always use `PreferencesDataSource`
+- Do not hardcode strings in Kotlin files
+- Do not perform hard deletes
+- Do not generate Phase 2 code (networking, sync, auth) during Phase 1 tasks

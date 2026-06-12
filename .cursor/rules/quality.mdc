@@ -1,0 +1,23 @@
+---
+alwaysApply: false
+description: Code quality, testing standards and Definition of Done
+---
+
+# Code Quality
+- Write clear, readable, maintainable code
+- Prefer simple solutions over complex ones
+- Follow platform best practices as defined in ARCHITECTURE.md
+
+# Testing
+- All features must include appropriate tests unless explicitly excluded in specs
+- Follow testing strategy defined in ARCHITECTURE.md
+- Cover:
+  - Core business logic
+  - Edge cases
+  - Failure scenarios
+
+# Definition of Done
+- Implementation matches spec requirements
+- Tests are implemented and passing
+- No unresolved ambiguities remain
+- Code follows architecture and quality guidelines
