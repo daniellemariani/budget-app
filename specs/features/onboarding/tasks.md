@@ -1,6 +1,6 @@
 # Onboarding — Tasks
 
-**Version:** 0.7.0
+**Version:** 0.8.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
@@ -320,9 +320,9 @@ This group sets up Room and all entities needed by onboarding (Workspace, Catego
   - `android/app/src/main/java/com/dmariani/capital/core/data/CategoryEntity.kt`
   - `android/app/src/main/java/com/dmariani/capital/core/data/CategoryDao.kt`
 - Details:
-  **`Category.kt` (domain model):** Pure Kotlin data class. Fields: `id: String`, `workspaceId: String`, `name: String`, `icon: String?`, `isDefault: Boolean`, `isHidden: Boolean`, `createdAt: Long`, `updatedAt: Long`, `deletedAt: Long?`, `lastSyncedAt: Long?`, `syncStatus: String?`.
+  **`Category.kt` (domain model):** Pure Kotlin data class. Fields: `id: String`, `workspaceId: String`, `name: String`, `icon: String?`, `color: String`, `isDefault: Boolean`, `isHidden: Boolean`, `createdAt: Long`, `updatedAt: Long`, `deletedAt: Long?`, `lastSyncedAt: Long?`, `syncStatus: String?`.
 
-  **`CategoryEntity.kt`:** `@Entity(tableName = "categories", foreignKeys = [ForeignKey(entity = WorkspaceEntity::class, parentColumns = ["id"], childColumns = ["workspace_id"])])`. Add index on `workspace_id`. Store `isDefault` and `isHidden` as INTEGER (0/1).
+  **`CategoryEntity.kt`:** `@Entity(tableName = "categories", foreignKeys = [ForeignKey(entity = WorkspaceEntity::class, parentColumns = ["id"], childColumns = ["workspace_id"])])`. Add index on `workspace_id`. Store `isDefault` and `isHidden` as INTEGER (0/1). Store `color` as TEXT (non-null hex string, e.g. `"#1D9E75"`).
 
   **`CategoryDao.kt`:** Methods: `insertCategories(entities: List<CategoryEntity>)` annotated with `@Transaction` (for atomic batch insert during seeding). `getCategoriesForWorkspace(workspaceId: String): List<CategoryEntity>` (used for idempotency check). Both suspend functions.
 
@@ -444,7 +444,7 @@ This group implements the Repository, LocalDataSource, and Use Cases for onboard
      a. Generate a UUID v4 for the Workspace id (`UUID.randomUUID().toString()`)
      b. Create a `Workspace` domain object: name = `"Personal"`, baseCurrency = `"USD"`, createdAt/updatedAt = current UTC milliseconds converted to Unix seconds
      c. Call `repository.insertWorkspace(workspace)`
-     d. Build the list of 20 default `Category` domain objects from the canonical list in `requirements.md` (RQ-ON-28). Each gets a UUID v4 id, the new workspace's id, `isDefault = true`, `isHidden = false`
+     d. Build the list of 20 default `Category` domain objects from the canonical list in `requirements.md` (RQ-ON-28). Each gets a UUID v4 id, the new workspace's id, `isDefault = true`, `isHidden = false`, and the `color` value from the canonical table
      e. Call `repository.insertCategories(categories)` — wrapped in a single transaction
   4. Return `Result.success(Unit)` on success
   5. Catch all exceptions → return `Result.failure(exception)`
@@ -1025,3 +1025,4 @@ This group implements the three onboarding screen composables. Each screen is wi
 | 0.5.0 | 2026-06-05 | Danielle Mariani | Add cross-field Credit Limit validation (BR-AC-04, BR-ON-09): TSK-ON-14 — add `onboarding_error_credit_limit_below_balance` string resource. TSK-ON-16 — update Account form validation: `isAccountFormValid` requires Credit Limit ≥ Initial Balance for Credit Card; add `CreditLimitFocusLost` event; add blur validation logic for `creditLimitBelowBalanceError`. TSK-ON-23 — add 4 unit test cases for blur validation and `isAccountFormValid` with cross-field error. |
 | 0.6.0 | 2026-06-08 | Danielle Mariani | TSK-ON-20, TSK-ON-21, TSK-ON-22: replace "App logo PNG" with "Capital wordmark" in implementation details. Update "logo" → "wordmark" in associated margin/padding references. |
 | 0.7.0 | 2026-06-08 | Danielle Mariani | TSK-ON-03: add `BorelFontFamily` definition to `Type.kt` (font file, XML descriptor, FontFamily val, single-declaration rule). TSK-ON-20, TSK-ON-21, TSK-ON-22: replace "Capital wordmark, centered" with full `Text` composable implementation detail (BorelFontFamily, 26sp, Box centering, import rule). Consistent with AppHeader in home-tasks.md. |
+| 0.8.0 | 2026-06-11 | Danielle Mariani | TSK-ON-06: add `color: String` to `Category.kt` domain model; add `color` TEXT column note to `CategoryEntity.kt`. TSK-ON-10: update step d — each seeded Category includes `color` from the canonical table in RQ-ON-28. |

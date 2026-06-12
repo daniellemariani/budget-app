@@ -1,6 +1,6 @@
 # API Contract — Budget App
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-19
@@ -551,6 +551,7 @@ All entity objects include Push Record or Pull Record fields in sync payloads (s
   "workspace_id": "string (UUID v4)",
   "name": "string",
   "icon": "string (emoji) | null",
+  "color": "string (hex, e.g. \"#4CAF50\")",
   "is_default": "boolean",
   "is_hidden": "boolean",
   "created_at": "integer (Unix UTC)",
@@ -1027,6 +1028,7 @@ The following filter parameters are standardized across all list endpoints that 
         "category_id": "string (UUID v4)",
         "category_name": "string",
         "category_icon": "string | null",
+        "category_color": "string (hex)",
         "planned_amount": "integer (cents)",
         "spent_amount": "integer (cents)",
         "remaining_amount": "integer (cents)"
@@ -1037,6 +1039,7 @@ The following filter parameters are standardized across all list endpoints that 
         "category_id": "string (UUID v4)",
         "category_name": "string",
         "category_icon": "string | null",
+        "category_color": "string (hex)",
         "spent_amount": "integer (cents)",
         "percentage_of_total": "float (0.0–1.0)"
       }
@@ -1441,7 +1444,8 @@ HTTP 201.
 {
   "id": "string (UUID v4, client-generated)",
   "name": "string",
-  "icon": "string (emoji) | null"
+  "icon": "string (emoji) | null",
+  "color": "string (hex, e.g. \"#4CAF50\")"
 }
 ```
 
@@ -1465,7 +1469,7 @@ HTTP 201.
 
 #### PATCH /api/v1/categories/{category_id}
 
-**Purpose:** Update a category's name, icon, or hidden state.
+**Purpose:** Update a category's name, icon, color, or hidden state.
 
 **Auth requirements:** ADMIN or above
 
@@ -1474,6 +1478,7 @@ HTTP 201.
 {
   "name": "string",
   "icon": "string (emoji) | null",
+  "color": "string (hex, e.g. \"#4CAF50\")",
   "is_hidden": "boolean"
 }
 ```
@@ -2382,3 +2387,4 @@ All incoming request bodies are validated against the schemas defined in this do
 | 0.4.0 | 2026-05-23 | Danielle Mariani | Add `initial_balance` to PATCH Account request schema with sync and validation notes. Flatten WorkspaceMember entity schema — add `display_name` and `email` as top-level fields replacing nested user object; add field notes on read-only sourcing and VIEWER visibility. Expand WorkspaceMember pending data model deltas to include `display_name`, `email`, `invite_token`, `invite_expires_at`. Update Open Questions WorkspaceMember delta entry. |
 | 0.4.1 | 2026-05-23 | Danielle Mariani | Remove resolved pending data model deltas note from WorkspaceMember entity schema — all five fields now implemented in data-model.md v0.6.0. Mark WorkspaceMember delta as resolved in Open Questions. |
 | 0.5.0 | 2026-05-27 | Danielle Mariani | Add `is_pinned` (boolean) and `pinned_at` (integer, Unix UTC, nullable) to Account, Budget, and Goal entity schemas. Add `is_pinned` to PATCH Account, Budget, and Goal request schemas. Add server-managed note for `pinned_at` on all three PATCH endpoints — never accepted in request bodies; server sets on pin, clears on unpin. Add sort order note to GET /api/v1/accounts, GET /api/v1/budgets, and GET /api/v1/goals — pinned items first (pinned_at ascending), then default order. |
+| 0.6.0 | 2026-06-11 | Danielle Mariani | Add `color` (hex string) to Category canonical object, POST request schema, and PATCH request schema. Add `category_color` to `budget_status` and `top_spending_categories` in the workspace summary response. Update PATCH purpose description to include color. |

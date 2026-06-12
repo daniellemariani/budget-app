@@ -1,6 +1,6 @@
 # Onboarding — Requirements
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
@@ -186,28 +186,28 @@ This Workspace is never exposed in the UI in Phase 1. All subsequent entities cr
 **RQ-ON-28 — Default category seeding**
 On first launch, after the Workspace is created, the app must seed the following default categories into the local Room database. All categories have `is_default = true`, `is_hidden = false`, and inherit the `workspace_id` from the default Workspace.
 
-| Category | Icon | Notes / Examples |
-|---|---|---|
-| Groceries | 🛒 | Supermarkets, food stores, wholesale clubs (e.g. Costco, Trader Joe's) |
-| Dining Out | 🍽️ | Restaurants, cafes, coffee shops, fast food, takeout (e.g. Starbucks, McDonald's) |
-| Transport | 🚗 | Public transit, rideshare, parking, tolls (e.g. Uber, Metro, parking meters) |
-| Fuel | ⛽ | Gas stations, EV charging (e.g. Shell, Chevron, Tesla Supercharger) |
-| Utilities | 💡 | Electricity, water, gas, internet, phone bills |
-| Housing | 🏠 | Rent, mortgage payments, HOA fees, home insurance |
-| Health | 💊 | Doctor visits, prescriptions, medical bills, health insurance |
-| Fitness & Sports | 🏋️ | Gym memberships, sports equipment, classes (e.g. Equinox, yoga studio) |
-| Entertainment | 🎬 | Movies, theme parks, concerts, live sports, streaming (e.g. Disneyland, Dodgers game) |
-| Shopping | 🛍️ | Clothing, electronics, home goods, one-time purchases (e.g. Amazon, Target, car down payment) |
-| Education | 📚 | Tuition, books, courses, school supplies |
-| Travel | ✈️ | Flights, hotels, vacation packages, travel insurance |
-| Personal Care | 🪥 | Haircuts, cosmetics, toiletries, spa |
-| Subscriptions | 📱 | Recurring digital services (e.g. Netflix, Spotify, iCloud, app subscriptions) |
-| Gifts & Donations | 🎁 | Birthday gifts, holiday gifts, charitable donations |
-| Pets | 🐾 | Pet food, vet visits, grooming, pet supplies |
-| Taxes & Fees | 🧾 | Income tax, property tax, government fees, fines |
-| Savings | 🏦 | Transfers to savings goals, emergency fund contributions |
-| Income | 💰 | Salary, freelance payments, cashback, rewards, side income |
-| Other | 📦 | Anything that doesn't fit another category |
+| Category | Icon | Color | Notes / Examples |
+|---|---|---|---|
+| Groceries | 🛒 | `#1D9E75` | Supermarkets, food stores, wholesale clubs (e.g. Costco, Trader Joe's) |
+| Dining Out | 🍽️ | `#D85A30` | Restaurants, cafes, coffee shops, fast food, takeout (e.g. Starbucks, McDonald's) |
+| Transport | 🚗 | `#378ADD` | Public transit, rideshare, parking, tolls (e.g. Uber, Metro, parking meters) |
+| Fuel | ⛽ | `#BA7517` | Gas stations, EV charging (e.g. Shell, Chevron, Tesla Supercharger) |
+| Utilities | 💡 | `#BA7517` | Electricity, water, gas, internet, phone bills |
+| Housing | 🏠 | `#639922` | Rent, mortgage payments, HOA fees, home insurance |
+| Health | 💊 | `#E24B4A` | Doctor visits, prescriptions, medical bills, health insurance |
+| Fitness & Sports | 💪 | `#1D9E75` | Gym memberships, sports equipment, classes (e.g. Equinox, yoga studio) |
+| Entertainment | 🎬 | `#D4537E` | Movies, theme parks, concerts, live sports, streaming (e.g. Disneyland, Dodgers game) |
+| Shopping | 🛍️ | `#D85A30` | Clothing, electronics, home goods, one-time purchases (e.g. Amazon, Target, car down payment) |
+| Education | 📚 | `#378ADD` | Tuition, books, courses, school supplies |
+| Travel | ✈️ | `#D4537E` | Flights, hotels, vacation packages, travel insurance |
+| Personal Care | 💆‍♀️ | `#D4537E` | Haircuts, cosmetics, toiletries, spa |
+| Subscriptions | 📱 | `#378ADD` | Recurring digital services (e.g. Netflix, Spotify, iCloud, app subscriptions) |
+| Gifts & Donations | 🎁 | `#D4537E` | Birthday gifts, holiday gifts, charitable donations |
+| Pets | 🐶 | `#BA7517` | Pet food, vet visits, grooming, pet supplies |
+| Taxes & Fees | 🧾 | `#D85A30` | Income tax, property tax, government fees, fines |
+| Savings | 🏦 | `#1D9E75` | Transfers to savings goals, emergency fund contributions |
+| Income | 💰 | `#639922` | Salary, freelance payments, cashback, rewards, side income |
+| Other | 📦 | `#378ADD` | Anything that doesn't fit another category |
 
 **RQ-ON-29 — Initialization timing**
 Workspace creation and category seeding must complete before the Feature Slides are shown. These operations run on a background thread and must not block the UI. If initialization fails (e.g. due to a database error), the app must display a generic error state with a retry option rather than proceeding with an uninitialized database.
@@ -478,3 +478,4 @@ Full web onboarding spec is defined at Phase 3 kickoff.
 | 0.3.0 | 2026-06-05 | Danielle Mariani | RQ-ON-21: add cross-field validation — Credit Limit must be ≥ Initial Balance for Credit Card accounts; inline error on blur below Credit Limit field. RQ-ON-22: add Credit Limit ≥ Initial Balance to Save button validity conditions. Error Handling table: add Credit Limit < Initial Balance row. Add BR-ON-09: Credit Card balance and limit constraint (references BR-AC-04 in SPEC.md). Add AC-ON-21: inline Credit Limit error when balance exceeds limit. |
 | 0.4.0 | 2026-06-08 | Danielle Mariani | RQ-ON-02, RQ-ON-09, RQ-ON-17: replace app logo with Capital wordmark (centered, top of screen) across all three onboarding screens. Dependencies table: rename "App logo asset" to "Capital wordmark asset"; expand note to include Add an Account screen. |
 | 0.5.0 | 2026-06-08 | Danielle Mariani | RQ-ON-02, RQ-ON-09, RQ-ON-17: clarify that "Capital" label is a `Text` composable using `BorelFontFamily` — not an image asset. Consistent with AppHeader implementation in home spec. Dependencies table: replace "Capital wordmark asset" with "Borel font resource" row referencing `core/ui/theme/Type.kt` and `design.md` registration. |
+| 0.6.0 | 2026-06-11 | Danielle Mariani | RQ-ON-28: add `color` column to default category table. Assign a hex color to each of the 20 default categories. Update icons: Fitness & Sports 🏋️ → 💪, Personal Care 🪥 → 💆‍♀️, Pets 🐾 → 🐶. |

@@ -1,6 +1,6 @@
 # Data Model — Budget App
 
-**Version:** 0.7.0
+**Version:** 0.8.0
 **Status:** Draft
 **Owner:** Danielle Mariani
 **Created at:** 2026-04-30
@@ -115,6 +115,7 @@ A user-defined label for grouping transactions. System-seeded defaults are provi
 | workspace_id | TEXT | No | — | FK → Workspace.id |
 | name | TEXT | No | — | Display name (e.g. "Groceries", "Utilities") |
 | icon | TEXT | Yes | null | Emoji character used as the category icon (e.g. `🛒`, `💡`). Optional. |
+| color | TEXT | No | — | Hex color string (e.g. `#4CAF50`). Used as the category's brand color. Rendered at full opacity for text and icon; pill background is derived at render time using 15% alpha. Default categories are seeded with predefined colors; user-created categories must supply a value. |
 | is_default | INTEGER | No | 0 | Boolean flag. 1 = system-seeded default category. |
 | is_hidden | INTEGER | No | 0 | Boolean flag. 1 = hidden from selection UI. |
 | created_at | INTEGER | No | now (UTC) | Unix timestamp, UTC |
@@ -127,6 +128,7 @@ A user-defined label for grouping transactions. System-seeded defaults are provi
 - Cannot be soft-deleted if it has associated transactions. User must reassign transactions first. (BR-CA-01)
 - Default categories (`is_default = 1`) cannot be soft-deleted, only hidden. (BR-CA-02)
 - `name` must be non-empty
+- `color` must be a valid 6-digit hex color string in the format `#RRGGBB`
 - Unique on `(workspace_id, name)` where deleted_at IS NULL
 
 ---
@@ -463,3 +465,4 @@ Indexes are listed per entity for fields that appear frequently in queries, filt
 | 0.5.0 | 2026-05-11 | Danielle Mariani | Add workspace_id and name constraints to Account, Category and Merchant. Add Derived Values to Design Principles. |
 | 0.6.0 | 2026-05-23 | Danielle Mariani | Expand WorkspaceMember stub with five new fields: status (PENDING/ACTIVE/REVOKED), display_name (denormalized from User), email (invite email → account email), invite_token (server-only, stored for revocation), invite_expires_at (server-only, 7-day TTL). Make user_id nullable for PENDING members. Update WorkspaceMember constraints. Add WorkspaceMember(workspace_id, status) index. |
 | 0.7.0 | 2026-05-26 | Danielle Mariani | Add is_pinned (INTEGER, default 0) and pinned_at (INTEGER, nullable) to Account, Budget, and Goal. Add BR-PI-01/02/03/04 constraint references to all three entities. Add pinned sort order note to Design Principles — Derived Values. Add (workspace_id, is_pinned, pinned_at) index for Account, Budget, and Goal. |
+| 0.8.0 | 2026-06-11 | Danielle Mariani | Add color (TEXT, non-nullable) to Category. Pill background tint is derived at render time (15% alpha); only one color value is stored. Add `#RRGGBB` format constraint. |

@@ -1,6 +1,6 @@
 # Onboarding — Design
 
-**Version:** 0.6.0
+**Version:** 0.7.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
@@ -218,6 +218,7 @@ Onboarding interacts with three Room entities. Full schema is defined in `specs/
 | workspace_id | FK → Workspace.id (the default workspace) |
 | name | See default category table in requirements.md (RQ-ON-28) |
 | icon | See default category table in requirements.md (RQ-ON-28) |
+| color | See default category table in requirements.md (RQ-ON-28) |
 | is_default | `1` (true) |
 | is_hidden | `0` (false) |
 | created_at | Current UTC Unix timestamp |
@@ -877,3 +878,4 @@ Deferred — consistent with the global testing strategy in `ARCHITECTURE.md`. U
 | 0.4.0 | 2026-06-05 | Danielle Mariani | Add cross-field Credit Limit validation (BR-AC-04): Credit Limit must be ≥ Initial Balance for Credit Card accounts. Add `creditLimitBelowBalanceError` field to `OnboardingUiState`. Add validation step 5 to Currency Input Parsing. Add `creditLimitBelowBalanceError` param to `AccountFormFields`. Add new error row to Error Handling table. Add `onboarding_error_credit_limit_below_balance` string resource. Update `OnboardingViewModel` testing strategy with blur and `isAccountFormValid` cases. Fix `BudgetAppTheme` → `AppTheme` in `OnboardingActivity` snippet. |
 | 0.5.0 | 2026-06-08 | Danielle Mariani | Replace app logo with Capital wordmark across all three onboarding screens. Updated composable breakdown trees (SetYourNameScreen, AddAnAccountScreen) and design token tables (Feature Slides, Set Your Name, Add an Account): "App logo" → "Capital wordmark", "Logo" → "Wordmark" in row labels and notes. |
 | 0.6.0 | 2026-06-08 | Danielle Mariani | Replace "Capital wordmark" image references with `Text` composable using `BorelFontFamily`. FeatureSlidesScreen composable tree: add `Text — "Capital" (BorelFontFamily, centered, top)` node above HorizontalPager. SetYourNameScreen and AddAnAccountScreen composable trees: `Image — Capital wordmark` → `Text — "Capital" (BorelFontFamily, centered, top)`. All three spacing tables: wordmark notes updated to reference "Capital" Text composable with BorelFontFamily. Consistent with AppHeader implementation in home-design.md. |
+| 0.7.0 | 2026-06-11 | Danielle Mariani | Category seed table: add `color` row — references RQ-ON-28 canonical table in requirements.md. |

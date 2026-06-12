@@ -530,6 +530,30 @@ These thresholds apply to budget progress bars and remaining amount labels throu
 
 ---
 
+### CategoryPill
+
+A compact label used to identify the category associated with a transaction, budget row, or any other context where category identity needs to be communicated inline.
+
+**Anatomy:** Emoji icon (optional) followed by category name, arranged horizontally with a small gap between them.
+
+**Color:**
+- Icon tint and text: `category.color` at full opacity
+- Pill background: `category.color` at 15% alpha
+
+The background tint is always derived at render time from the single stored color value. A second color is never stored. This ensures the pill always reads as visually coherent regardless of the category color chosen.
+
+**Shape:** `radius.sm` (6dp) — consistent with chips and tags.
+
+**Typography:** `Label` scale — 13sp, weight 500.
+
+**Padding:** 4dp vertical (`spacing.xs`), 8dp horizontal (`spacing.sm`).
+
+**Behavior:** Display-only. The pill is never interactive on its own. Tap targets belong to the parent row.
+
+**Accessibility:** Content description must announce the category name only. The emoji icon must be hidden from screen readers (`contentDescription = null` on Android, `aria-hidden` on web).
+
+---
+
 ### Charts
 
 Charts support comprehension, not decoration. They are secondary to the core financial data displayed in lists and cards.
@@ -759,3 +783,4 @@ The product should feel dependable before it feels impressive.
 | 0.1.0 | 2026-05-27 | Danielle Mariani | Initial draft — design philosophy, principles, color system, typography scale (roles only), spacing, component patterns, motion, accessibility, platform adaptation, and design tokens. |
 | 0.2.0 | 2026-05-27 | Danielle Mariani | Revise primary accent: `#0F766E` → `#0D7377` (light), `#2DD4BF` → `#2EB5AC` (dark) — same teal family, consistent brand identity across modes. Fix Surface Alt dark: `#273244` → `#1C2434` (neutral, no blue cast). Add `color.accent.on` token to both themes. Add Dark Mode Strategy section. Add token column to color tables. Add Iconography section (Material Symbols / Tabler, sizing, usage rules). Expand Typography Scale with concrete sizes, weights, and line heights. Add Android font bundling note and web variable font note. Add Financial Number Formatting section (currency, negative values, percentages, alignment). Add `spacing.xxs` (2dp) micro-spacing token. Make Radius tokens concrete with values and usage. Add Progress Bar spending threshold table (accent / warning / error at 85% and 100%). Add Color Independence Rule table with secondary signals. Add Material 3 color role mapping table. Add Sync Indicators state table. Add changelog. |
 | 0.3.0 | 2026-06-08 | Danielle Mariani | Add Display / Brand Font section: Borel, Android registration steps (`res/font/borel_regular.ttf`, `borel.xml`, `BorelFontFamily` val in `core/ui/theme/Type.kt`), usage constraints (Dashboard AppHeader only, 26sp, minimum 20sp), web note. Rename document title and all "Budget App" references to "Capital". |
+| 0.4.0 | 2026-06-11 | Danielle Mariani | Add CategoryPill reusable component: anatomy (emoji icon + category name), color rules (full opacity text/icon, 15% alpha background derived at render time from single stored hex), shape (`radius.sm`), typography (`Label` scale), padding (`spacing.xs` / `spacing.sm`), behavior (display-only), and accessibility note (emoji hidden from screen readers). |
