@@ -1,0 +1,103 @@
+---
+paths:
+  - "android/**/*.kt"
+---
+
+# Android Rules
+
+## Architecture (MVVM + Clean Architecture)
+
+Strict layer boundaries — never cross them:
+
+```
+UI (Composables)
+    └── ViewModel              — UI state + user events; no business logic
+        └── UseCase            — single business operation
+            └── Repository     — interface only (in domain/)
+                └── DAO        — Room DAOs (in core/data/)
+```
+
+- ViewModel depends on use cases, **never** directly on Repository
+- Use cases are injected via Hilt; repositories are injected into use cases via Hilt
+- UI layer observes `StateFlow` from ViewModel only — never accesses Repository directly
+
+## Package Structure
+
+```
+android/src/main/java/com/dmariani/capital/
+├── core/
+│   ├── ui/           — shared Composables, theme, design tokens
+│   ├── domain/       — pure Kotlin domain entities (no framework annotations)
+│   └── data/
+│       ├── AppDatabase.kt
+│       ├── PreferenceKeys.kt     — SharedPreferences key constants
+│       ├── PreferencesDataSource.kt
+│       └── [Entity]Dao.kt        — one DAO per entity
+├── feature/
+│   └── [feature]/
+│       ├── ui/
+│       │   ├── [Feature]Screen.kt
+│       │   └── [Feature]ViewModel.kt
+│       ├── domain/
+│       │   ├── [Feature]Repository.kt        — interface
+│       │   ├── Create[Feature]UseCase.kt
+│       │   ├── Update[Feature]UseCase.kt
+│       │   ├── Delete[Feature]UseCase.kt
+│       │   └── Get[Feature]UseCase.kt
+│       └── data/
+│           ├── local/
+│           │   └── [Feature]LocalDataSource.kt
+│           └── [Feature]RepositoryImpl.kt
+└── app/
+    ├── MainActivity.kt
+    └── AppNavGraph.kt
+```
+
+## Domain Model Rules
+
+- `core/domain/` — pure Kotlin, zero framework dependencies, zero annotations
+- Room `@Entity` classes live in `core/data/` — never in `domain/`
+- Network DTOs live in `feature/data/remote/` — Phase 2 only, do not create in Phase 1
+- Mappers convert between layers at boundaries — never pass Room entities to the UI
+- UI state models (e.g. `TransactionUiState`) live in `feature/ui/`
+
+## Dependency Injection (Hilt)
+
+- `DatabaseModule` — provides Room DB and all DAOs
+- `RepositoryModule` — binds Repository interfaces to their implementations
+- ViewModels scoped via `hiltViewModel()`
+- Feature-level Hilt modules where needed
+
+## Room
+
+- Database name: `budget_app.db`
+- Amounts: `INTEGER` (cents), never `REAL`
+- Dates: `INTEGER` (Unix timestamp, UTC)
+- All entities include: `id TEXT`, `workspace_id TEXT`, `created_at INTEGER`, `updated_at INTEGER`, `deleted_at INTEGER` (nullable), `sync_status TEXT` (nullable), `last_synced_at INTEGER` (nullable)
+- One DAO per entity in `core/data/`
+
+## Navigation
+
+- `OnboardingActivity` — first launch only; no bottom nav, no header
+- `MainActivity` — all post-onboarding screens; always shows header + bottom nav
+- `onboarding_completed` boolean in SharedPreferences is the launch gate — read via `PreferencesDataSource`
+- Single `NavHost` in `AppNavGraph.kt`; all destinations defined as a sealed class/object hierarchy
+
+## Coroutines and Flow
+
+- All data access is asynchronous using Coroutines and Flow
+- Use `StateFlow` for UI state in ViewModels
+- Use `viewModelScope` for coroutine scope in ViewModels
+
+## UI
+
+- All text via `stringResource()` — no hardcoded strings in Composables
+- Minimum touch target: 48×48dp (NFR-AC-01)
+- Support system font size scaling (NFR-AC-02)
+- Error states surfaced via sealed `UiState` classes (Loading, Success, Error) — no silent failures
+
+## Phase 1 Constraint
+
+- Zero network calls
+- Zero Retrofit, OkHttp, or Coil imports — Phase 2 only
+- All features must work 100% offline (NFR-OF-01, NFR-OF-02)

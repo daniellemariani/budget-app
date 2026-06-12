@@ -1,0 +1,53 @@
+---
+paths:
+  - "web/**/*.tsx"
+  - "web/**/*.ts"
+---
+
+# React Rules (Phase 3)
+
+> Phase 3 has not started. Do not generate web code during Phase 1 or Phase 2 tasks.
+
+## Stack
+
+- React + TypeScript
+- TanStack Query — all API data fetching, caching, and invalidation
+- shadcn/ui + Tailwind CSS
+- Vite
+- Supabase JS SDK — auth, session management, JWT in localStorage
+- JWT passed in `Authorization` header on every FastAPI request
+
+## Package Structure
+
+```
+web/src/
+├── features/
+│   └── [feature]/
+│       ├── components/      — feature-specific Composables
+│       ├── hooks/           — e.g. useTransactions.ts
+│       ├── types.ts
+│       └── index.ts         — public API of the feature
+├── components/ui/           — shadcn/ui shared components
+├── hooks/                   — shared hooks (useAuth.ts, useWorkspace.ts)
+├── lib/
+│   ├── api.ts               — fetch wrapper, attaches JWT
+│   ├── supabase.ts          — Supabase client instance
+│   └── utils.ts
+├── types/                   — shared TypeScript types
+├── pages/                   — route-level components (one per route)
+└── main.tsx
+```
+
+## Architecture Rules
+
+- No global client-side state manager (no Redux, no Zustand) unless a specific need arises
+- TanStack Query cache is ephemeral — web is API-first, not offline-first
+- Computed fields come from server response — do not recalculate client-side
+- Feature APIs are the source of truth for web (unlike Android which uses Room)
+- shadcn/ui components stay in `components/ui/` — do not scatter them
+
+## Data Rules
+
+- All amounts received as integers (cents) — format for display only, never store as float
+- All dates as Unix timestamps (UTC) — convert to display timezone in UI layer
+- `X-Workspace-ID` header on every authenticated request

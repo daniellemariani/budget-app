@@ -1,0 +1,63 @@
+---
+paths:
+  - "backend/**/*.py"
+---
+
+# FastAPI Rules (Phase 2)
+
+> Phase 2 has not started. Do not generate backend code during Phase 1 tasks.
+
+## Stack
+
+- Python 3.12+
+- FastAPI (monolith — single app, all routes)
+- SQLModel (ORM)
+- Alembic (migrations)
+- Supabase PostgreSQL (via `DATABASE_URL` connection string)
+- JWT validation via `SUPABASE_JWT_SECRET` — local, no Supabase network call per request
+- Uvicorn runtime
+
+## Package Structure
+
+```
+backend/
+├── app/
+│   ├── api/v1/
+│   │   ├── routes/          — one file per feature (transactions.py, budgets.py, ...)
+│   │   └── router.py        — aggregates all routes
+│   ├── core/
+│   │   ├── config.py        — settings via pydantic-settings
+│   │   ├── security.py      — JWT validation logic
+│   │   └── database.py      — SQLModel engine + session
+│   ├── models/              — SQLModel table models
+│   ├── schemas/             — Pydantic request/response schemas
+│   ├── services/            — business logic layer
+│   └── main.py
+├── alembic/
+├── tests/
+└── pyproject.toml
+```
+
+## API Contract Rules
+
+- All routes versioned under `/api/v1/`
+- `X-Workspace-ID` header required on all authenticated requests — workspace from header, not JWT claims
+- PATCH semantics: omit = unchanged, value = update, null = clear (nullable fields only)
+- Soft delete only — never hard delete
+- `sync_status` and `last_synced_at` are client-only — never include in API request or response payloads
+- `server_received_at` is backend-only — never returned to client
+- Offset pagination for standard list endpoints; cursor-based for sync pull only
+- Dashboard summary served by `GET /api/v1/workspaces/{workspace_id}/summary` (BFF endpoint)
+
+## Auth
+
+- Supabase owns identity (register, login, token refresh, logout)
+- FastAPI validates JWT locally using `SUPABASE_JWT_SECRET` — no network call per validation
+- Role enforcement: VIEWER < MEMBER < ADMIN < OWNER
+- Full role permission matrix in SPEC.md
+
+## Testing
+
+- pytest
+- FastAPI TestClient + dedicated test database
+- Coverage targets defined at Phase 2 kickoff
