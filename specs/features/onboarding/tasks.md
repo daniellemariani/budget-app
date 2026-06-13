@@ -1,11 +1,11 @@
 # Onboarding — Tasks
 
-**Version:** 0.8.0
+**Version:** 0.9.0
 **Status:** Draft
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-31
-**Last Updated:** 2026-06-08
+**Last Updated:** 2026-06-13
 
 ---
 
@@ -114,16 +114,16 @@ This group creates the Android project skeleton. No onboarding-specific code is 
   **Version catalog (`libs.versions.toml`):**
   ```toml
   [versions]
-  agp = "9.1.1"
-  kotlin = "2.3.0"
-  compileSdk = "36"
+  agp = "9.2.0"
+  kotlin = "2.4.0"
+  compileSdk = "37"
   targetSdk = "36"
-  minSdk = "23"
+  minSdk = "24"
   composeBom = "2026.05.00"
-  hilt = "2.56"
-  room = "2.7.1"
-  lifecycle = "2.9.0"
-  navigationCompose = "2.9.0"
+  hilt = "2.57.1"
+  room = "2.8.4"
+  lifecycle = "2.10.0"
+  navigationCompose = "2.9.8"
   coroutines = "1.10.2"
 
   [libraries]
@@ -133,11 +133,11 @@ This group creates the Android project skeleton. No onboarding-specific code is 
   compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
   compose-material3 = { group = "androidx.compose.material3", name = "material3" }
   compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
-  activity-compose = { group = "androidx.activity", name = "activity-compose", version = "1.10.1" }
+  activity-compose = { group = "androidx.activity", name = "activity-compose", version = "1.12.2" }
   navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
   hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
   hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
-  hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.2.0" }
+  hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.3.0" }
   room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
   room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
   room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
@@ -154,17 +154,17 @@ This group creates the Android project skeleton. No onboarding-specific code is 
   kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
   kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
   hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
-  ksp = { id = "com.google.devtools.ksp", version = "2.3.0-1.0.29" }
+  ksp = { id = "com.google.devtools.ksp", version = "2.4.0-1.0.29" }
   ```
 
   **`app/build.gradle.kts` key config:**
   ```kotlin
   android {
       namespace = "com.dmariani.capital"
-      compileSdk = 36
+      compileSdk = 37
       defaultConfig {
           applicationId = "com.dmariani.capital"
-          minSdk = 23
+          minSdk = 24
           targetSdk = 36
           versionCode = 1
           versionName = "1.0.0"
@@ -1026,3 +1026,4 @@ This group implements the three onboarding screen composables. Each screen is wi
 | 0.6.0 | 2026-06-08 | Danielle Mariani | TSK-ON-20, TSK-ON-21, TSK-ON-22: replace "App logo PNG" with "Capital wordmark" in implementation details. Update "logo" → "wordmark" in associated margin/padding references. |
 | 0.7.0 | 2026-06-08 | Danielle Mariani | TSK-ON-03: add `BorelFontFamily` definition to `Type.kt` (font file, XML descriptor, FontFamily val, single-declaration rule). TSK-ON-20, TSK-ON-21, TSK-ON-22: replace "Capital wordmark, centered" with full `Text` composable implementation detail (BorelFontFamily, 26sp, Box centering, import rule). Consistent with AppHeader in home-tasks.md. |
 | 0.8.0 | 2026-06-11 | Danielle Mariani | TSK-ON-06: add `color: String` to `Category.kt` domain model; add `color` TEXT column note to `CategoryEntity.kt`. TSK-ON-10: update step d — each seeded Category includes `color` from the canonical table in RQ-ON-28. |
+| 0.9.0 | 2026-06-13 | Danielle Mariani | TSK-ON-01: update version catalog to latest stable versions. AGP 9.1.1 → 9.2.0, Kotlin 2.3.0 → 2.4.0, compileSdk 36 → 37 (required by AGP 9.2.0 + Compose), minSdk 23 → 24 (product decision), Hilt 2.56 → 2.57.1, Room 2.7.1 → 2.8.4, Lifecycle 2.9.0 → 2.10.0, Navigation Compose 2.9.0 → 2.9.8, activity-compose 1.10.1 → 1.12.2, hilt-navigation-compose 1.2.0 → 1.3.0, KSP 2.3.0-1.0.29 → 2.4.0-1.0.29. |
