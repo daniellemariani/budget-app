@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Capital App — Adaptive Icon Foreground Layer
+  ─────────────────────────────────────────────
+  File    : res/drawable/ic_launcher_foreground.xml
+  Canvas  : 108 × 108 dp  (Android adaptive icon standard)
+  Safe zone: inner 66 × 66 dp (x=21, y=21) — mark lives entirely within it
+  Mark    : Double-loop C · ~52 dp diameter · centered at (54, 54)
+  Color   : White (#FFFFFF) on transparent background
+  API     : minSdk 21+ compatible (filled paths only, no strokeWidth)
+
+  Companion files:
+    res/drawable/ic_launcher_background.xml   → solid #0D7377
+    res/mipmap-anydpi-v26/ic_launcher.xml     → <adaptive-icon> descriptor
+
+  Design notes:
+    · Outer ring  — annular arc, radius 26 dp, stroke equiv. 3.2 dp
+                    opens ~100° on the right side (gap 50°→310°)
+                    rounded terminals via semicircle caps
+    · Inner C     — annular arc, radius 16 dp, stroke equiv. 4.8 dp
+                    opens ~120° on the right side (gap 40°→320°)
+                    heavier stroke gives the characteristic "lip" terminals
+    · Both paths are fully filled outlines (no android:strokeWidth)
+      for maximum compatibility across all API levels and densities.
+-->
+<vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!--
+        OUTER RING
+        Near-complete circle, center (54,54), radius 26 dp.
+        Equivalent stroke width: 3.2 dp (outer r=27.6, inner r=24.4).
+        Arc span: 50° → 310° (260° sweep), opening on the right.
+        Caps: 1.6 dp radius semicircles at each terminal.
+
+        Path construction (all coordinates in dp):
+          M  outer-arc start point
+          A  outer arc (large-arc=1, sweep CW)   to outer-arc end point
+          A  end-cap semicircle (small, CW)       to inner-arc end point
+          A  inner arc (large-arc=1, sweep CCW)   to inner-arc start point
+          A  start-cap semicircle (small, CW)     back to outer-arc start
+          Z
+    -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M 71.7409,75.1428
+            A 27.6,27.6 0 1 1 71.7409,32.8572
+            A 1.6,1.6   0 0 1 69.6840,35.3085
+            A 24.4,24.4 0 1 0 69.6840,72.6915
+            A 1.6,1.6   0 0 1 71.7409,75.1428
+            Z" />
+
+    <!--
+        INNER C
+        Smaller arc, center (54,54), radius 16 dp.
+        Equivalent stroke width: 4.8 dp (outer r=18.4, inner r=13.6).
+        Arc span: 40° → 320° (280° sweep), opening on the right.
+        Caps: 2.4 dp radius semicircles — creates the rounded "lip" terminals
+        that distinguish this mark from a plain geometric C.
+
+        Path construction (same pattern as outer ring):
+          M  outer-arc start
+          A  outer arc (large-arc=1, sweep CW)   to outer-arc end
+          A  end-cap semicircle (small, CW)       to inner-arc end
+          A  inner arc (large-arc=1, sweep CCW)   to inner-arc start
+          A  start-cap semicircle (small, CW)     back to outer-arc start
+          Z
+    -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M 68.0952,65.8273
+            A 18.4,18.4 0 1 1 68.0952,42.1727
+            A 2.4,2.4   0 0 1 64.4182,45.2581
+            A 13.6,13.6 0 1 0 64.4182,62.7419
+            A 2.4,2.4   0 0 1 68.0952,65.8273
+            Z" />
+
+</vector>
