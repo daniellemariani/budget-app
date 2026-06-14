@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Google Fonts provider certificate arrays required by res/font/inter_variable.xml.
+
+    For development, these arrays can remain empty — the GMS fonts provider on the
+    device handles verification automatically when the app is run on a real device
+    or emulator with Google Play Services.
+
+    For production / release builds, populate these with the SHA-256 certificate
+    hashes from Google's Downloadable Fonts sample:
+    https://github.com/android/user-interface-samples/tree/main/DownloadableFonts
+-->
+<resources>
+    <string-array name="com_google_android_gms_fonts_certs">
+        <item>@array/com_google_android_gms_fonts_certs_dev</item>
+        <item>@array/com_google_android_gms_fonts_certs_prod</item>
+    </string-array>
+
+    <string-array name="com_google_android_gms_fonts_certs_dev">
+    </string-array>
+
+    <string-array name="com_google_android_gms_fonts_certs_prod">
+    </string-array>
+</resources>
