@@ -38,7 +38,7 @@ Each task specifies its requirements coverage, acceptance criteria, dependencies
 | TSK-ON-01 | Create Android project skeleton | Project Foundation | 1 | M | Done |
 | TSK-ON-02 | Set up base package structure | Project Foundation | 1 | S | Done |
 | TSK-ON-03 | Configure Material 3 theme | Project Foundation | 1 | S | Done |
-| TSK-ON-04 | Set up Hilt application module | Project Foundation | 1 | S | Not Started |
+| TSK-ON-04 | Set up Hilt application module | Project Foundation | 1 | S | Done |
 | TSK-ON-05 | Define Room database and Workspace entity | Database Foundation | 1 | M | Not Started |
 | TSK-ON-06 | Define Category entity and DAO | Database Foundation | 1 | M | Not Started |
 | TSK-ON-07 | Define Account entity, DAO, and AccountType enum | Database Foundation | 1 | M | Not Started |
@@ -261,7 +261,7 @@ This group creates the Android project skeleton. No onboarding-specific code is 
 - Group: Project Foundation
 - Requirements: —
 - Acceptance Criteria: —
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-01, TSK-ON-02
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/core/data/di/DatabaseModule.kt`
