@@ -3,6 +3,7 @@ package com.dmariani.capital.core.data.di
 import android.content.Context
 import androidx.room.Room
 import com.dmariani.capital.core.data.AppDatabase
+import com.dmariani.capital.core.data.CategoryDao
 import com.dmariani.capital.core.data.WorkspaceDao
 import dagger.Module
 import dagger.Provides
@@ -23,4 +24,7 @@ object DatabaseModule {
 
     @Provides
     fun provideWorkspaceDao(db: AppDatabase): WorkspaceDao = db.workspaceDao()
+
+    @Provides
+    fun provideCategoryDao(db: AppDatabase): CategoryDao = db.categoryDao()
 }
