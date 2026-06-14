@@ -5,7 +5,7 @@
 **Phase:** 1 (Android)
 **Owner:** Danielle Mariani
 **Created at:** 2026-05-31
-**Last Updated:** 2026-06-13
+**Last Updated:** 2026-06-14
 
 ---
 
@@ -35,7 +35,7 @@ Each task specifies its requirements coverage, acceptance criteria, dependencies
 
 | ID | Title | Group | Phase | Effort | Status |
 |---|---|---|---|---|---|
-| TSK-ON-01 | Create Android project skeleton | Project Foundation | 1 | M | Not Started |
+| TSK-ON-01 | Create Android project skeleton | Project Foundation | 1 | M | Done |
 | TSK-ON-02 | Set up base package structure | Project Foundation | 1 | S | Not Started |
 | TSK-ON-03 | Configure Material 3 theme | Project Foundation | 1 | S | Not Started |
 | TSK-ON-04 | Set up Hilt application module | Project Foundation | 1 | S | Not Started |
@@ -97,7 +97,7 @@ This group creates the Android project skeleton. No onboarding-specific code is 
 - Group: Project Foundation
 - Requirements: —
 - Acceptance Criteria: —
-- Status: Not Started
+- Status: Done
 - Depends on: None
 - Creates:
   - `android/build.gradle.kts` (root)
@@ -114,16 +114,16 @@ This group creates the Android project skeleton. No onboarding-specific code is 
   **Version catalog (`libs.versions.toml`):**
   ```toml
   [versions]
-  agp = "9.2.0"
-  kotlin = "2.4.0"
-  compileSdk = "37"
+  agp = "9.1.1"
+  kotlin = "2.3.0"
+  compileSdk = "36"
   targetSdk = "36"
-  minSdk = "24"
+  minSdk = "23"
   composeBom = "2026.05.00"
-  hilt = "2.57.1"
-  room = "2.8.4"
-  lifecycle = "2.10.0"
-  navigationCompose = "2.9.8"
+  hilt = "2.59"
+  room = "2.7.1"
+  lifecycle = "2.9.0"
+  navigationCompose = "2.9.0"
   coroutines = "1.10.2"
 
   [libraries]
@@ -151,27 +151,41 @@ This group creates the Android project skeleton. No onboarding-specific code is 
 
   [plugins]
   android-application = { id = "com.android.application", version.ref = "agp" }
-  kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
   kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
   hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
-  ksp = { id = "com.google.devtools.ksp", version = "2.4.0-1.0.29" }
+  ksp = { id = "com.google.devtools.ksp", version = "2.3.5" }
   ```
 
   **`app/build.gradle.kts` key config:**
   ```kotlin
   android {
       namespace = "com.dmariani.capital"
-      compileSdk = 37
+      compileSdk = 36
       defaultConfig {
           applicationId = "com.dmariani.capital"
-          minSdk = 24
+          minSdk = 23
           targetSdk = 36
           versionCode = 1
           versionName = "1.0.0"
       }
+      compileOptions {
+          sourceCompatibility = JavaVersion.VERSION_11
+          targetCompatibility = JavaVersion.VERSION_11
+      }
       buildFeatures { compose = true }
   }
+
+  kotlin {
+      compilerOptions {
+          jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+      }
+  }
   ```
+
+  **AGP 9 notes:**
+  - `kotlinOptions { jvmTarget }` is removed in AGP 9 — use `kotlin { compilerOptions {} }` instead
+  - `org.jetbrains.kotlin.android` plugin is no longer required in AGP 9+ — do not apply it
+  - KSP versioning is now independent of Kotlin version (since KSP 2.3.0)
 
   The `applicationId` and package name are `com.dmariani.capital`. To rename if needed in the future: use Android Studio's refactor tool (Refactor → Rename package) and update `applicationId` in `build.gradle.kts`. This affects both the package structure and the Play Store identifier.
 
@@ -1026,4 +1040,4 @@ This group implements the three onboarding screen composables. Each screen is wi
 | 0.6.0 | 2026-06-08 | Danielle Mariani | TSK-ON-20, TSK-ON-21, TSK-ON-22: replace "App logo PNG" with "Capital wordmark" in implementation details. Update "logo" → "wordmark" in associated margin/padding references. |
 | 0.7.0 | 2026-06-08 | Danielle Mariani | TSK-ON-03: add `BorelFontFamily` definition to `Type.kt` (font file, XML descriptor, FontFamily val, single-declaration rule). TSK-ON-20, TSK-ON-21, TSK-ON-22: replace "Capital wordmark, centered" with full `Text` composable implementation detail (BorelFontFamily, 26sp, Box centering, import rule). Consistent with AppHeader in home-tasks.md. |
 | 0.8.0 | 2026-06-11 | Danielle Mariani | TSK-ON-06: add `color: String` to `Category.kt` domain model; add `color` TEXT column note to `CategoryEntity.kt`. TSK-ON-10: update step d — each seeded Category includes `color` from the canonical table in RQ-ON-28. |
-| 0.9.0 | 2026-06-13 | Danielle Mariani | TSK-ON-01: update version catalog to latest stable versions. AGP 9.1.1 → 9.2.0, Kotlin 2.3.0 → 2.4.0, compileSdk 36 → 37 (required by AGP 9.2.0 + Compose), minSdk 23 → 24 (product decision), Hilt 2.56 → 2.57.1, Room 2.7.1 → 2.8.4, Lifecycle 2.9.0 → 2.10.0, Navigation Compose 2.9.0 → 2.9.8, activity-compose 1.10.1 → 1.12.2, hilt-navigation-compose 1.2.0 → 1.3.0, KSP 2.3.0-1.0.29 → 2.4.0-1.0.29. |
+| 0.9.0 | 2026-06-14 | Danielle Mariani | TSK-ON-01: update versions for AGP 9 compatibility — `hilt` bumped from `2.56` to `2.59` (first version supporting AGP 9); `ksp` changed from `2.3.0-1.0.29` to `2.3.5` (KSP now independent of Kotlin version since KSP 2.3.0); remove `kotlin-android` plugin (redundant in AGP 9+). Update `app/build.gradle.kts` snippet: replace `kotlinOptions { jvmTarget }` with `kotlin { compilerOptions {} }` (AGP 9 breaking change); add `compileOptions` block; add AGP 9 notes section. |
