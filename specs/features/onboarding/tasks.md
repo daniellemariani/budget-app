@@ -36,7 +36,7 @@ Each task specifies its requirements coverage, acceptance criteria, dependencies
 | ID | Title | Group | Phase | Effort | Status |
 |---|---|---|---|---|---|
 | TSK-ON-01 | Create Android project skeleton | Project Foundation | 1 | M | Done |
-| TSK-ON-02 | Set up base package structure | Project Foundation | 1 | S | Not Started |
+| TSK-ON-02 | Set up base package structure | Project Foundation | 1 | S | Done |
 | TSK-ON-03 | Configure Material 3 theme | Project Foundation | 1 | S | Not Started |
 | TSK-ON-04 | Set up Hilt application module | Project Foundation | 1 | S | Not Started |
 | TSK-ON-05 | Define Room database and Workspace entity | Database Foundation | 1 | M | Not Started |
@@ -201,7 +201,7 @@ This group creates the Android project skeleton. No onboarding-specific code is 
 - Group: Project Foundation
 - Requirements: —
 - Acceptance Criteria: —
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-01
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/core/ui/` (directory)
