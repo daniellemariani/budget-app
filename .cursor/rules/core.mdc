@@ -98,3 +98,8 @@ When implementing any task:
 - Ask before making any architectural decisions not covered by the spec
 - If anything is ambiguous, stop and ask — do not assume
 - Once a task is complete, mark it as Done in the relevant `tasks.md` file
+
+When I say **"Approved"** or **"Approved and commit"**:
+- Commit all files associated with the current task
+- Use the task ID and title as the commit message (e.g. `feat(android): TSK-ON-08 — <task title>`)
+- Do not include co-author attribution
