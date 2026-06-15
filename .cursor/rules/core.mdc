@@ -26,6 +26,14 @@ All behavior is defined in specs before implementation. Before writing any code:
 2. Read the solution design: `specs/features/[feature]/design.md`
 3. Follow the task list exactly: `specs/features/[feature]/tasks.md`
 
+## Required Reading
+
+Before starting any task, read these files:
+- `ARCHITECTURE.md` — package structure, layering rules, dependency directions
+- `specs/features/[feature]/requirements.md` — feature behavior
+- `specs/features/[feature]/design.md` — UI and implementation design
+- `specs/features/[feature]/tasks.md` — task list (follow exactly)
+
 **Do not invent behavior, add fields, or deviate from specs.** If a spec is ambiguous, stop and ask — do not assume.
 
 Business rule IDs (BR-XX-NN) are canonical. Never rename or renumber them.
