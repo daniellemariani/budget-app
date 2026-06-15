@@ -44,7 +44,7 @@ Each task specifies its requirements coverage, acceptance criteria, dependencies
 | TSK-ON-07 | Define Account entity, DAO, and AccountType enum | Database Foundation | 1 | M | Done |
 | TSK-ON-08 | Implement OnboardingLocalDataSource | Data Layer | 1 | S | Done |
 | TSK-ON-09 | Implement OnboardingRepository interface and implementation | Data Layer | 1 | S | Done |
-| TSK-ON-10 | Implement InitializeWorkspaceUseCase | Data Layer | 1 | M | Not Started |
+| TSK-ON-10 | Implement InitializeWorkspaceUseCase | Data Layer | 1 | M | Done |
 | TSK-ON-11 | Implement SaveDisplayNameUseCase | Data Layer | 1 | S | Not Started |
 | TSK-ON-12 | Implement CreateAccountUseCase | Data Layer | 1 | M | Not Started |
 | TSK-ON-13 | Create PreferenceKeys constants | Constants & Resources | 1 | S | Not Started |
@@ -444,7 +444,7 @@ This group implements the Repository, LocalDataSource, and Use Cases for onboard
 - Group: Data Layer
 - Requirements: RQ-ON-27, RQ-ON-28, RQ-ON-29, RQ-ON-30
 - Acceptance Criteria: AC-ON-01, AC-ON-10, AC-ON-19, AC-ON-20
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-09
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/domain/InitializeWorkspaceUseCase.kt`
