@@ -90,3 +90,11 @@ Business rule IDs (BR-XX-NN) are canonical. Never rename or renumber them.
 - Do not hardcode strings in Kotlin files
 - Do not perform hard deletes
 - Do not generate Phase 2 code (networking, sync, auth) during Phase 1 tasks
+
+## Task Execution Protocol
+
+When implementing any task:
+- Follow the task spec exactly — do not add anything not specified
+- Ask before making any architectural decisions not covered by the spec
+- If anything is ambiguous, stop and ask — do not assume
+- Once a task is complete, mark it as Done in the relevant `tasks.md` file
