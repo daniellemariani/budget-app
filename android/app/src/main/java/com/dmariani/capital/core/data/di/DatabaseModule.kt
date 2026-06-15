@@ -2,6 +2,7 @@ package com.dmariani.capital.core.data.di
 
 import android.content.Context
 import androidx.room.Room
+import com.dmariani.capital.core.data.AccountDao
 import com.dmariani.capital.core.data.AppDatabase
 import com.dmariani.capital.core.data.CategoryDao
 import com.dmariani.capital.core.data.WorkspaceDao
@@ -27,4 +28,7 @@ object DatabaseModule {
 
     @Provides
     fun provideCategoryDao(db: AppDatabase): CategoryDao = db.categoryDao()
+
+    @Provides
+    fun provideAccountDao(db: AppDatabase): AccountDao = db.accountDao()
 }
