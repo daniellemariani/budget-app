@@ -41,7 +41,7 @@ Each task specifies its requirements coverage, acceptance criteria, dependencies
 | TSK-ON-04 | Set up Hilt application module | Project Foundation | 1 | S | Done |
 | TSK-ON-05 | Define Room database and Workspace entity | Database Foundation | 1 | M | Done |
 | TSK-ON-06 | Define Category entity and DAO | Database Foundation | 1 | M | Done |
-| TSK-ON-07 | Define Account entity, DAO, and AccountType enum | Database Foundation | 1 | M | Not Started |
+| TSK-ON-07 | Define Account entity, DAO, and AccountType enum | Database Foundation | 1 | M | Done |
 | TSK-ON-08 | Implement OnboardingLocalDataSource | Data Layer | 1 | S | Not Started |
 | TSK-ON-09 | Implement OnboardingRepository interface and implementation | Data Layer | 1 | S | Not Started |
 | TSK-ON-10 | Implement InitializeWorkspaceUseCase | Data Layer | 1 | M | Not Started |
@@ -356,7 +356,7 @@ This group sets up Room and all entities needed by onboarding (Workspace, Catego
 - Group: Database Foundation
 - Requirements: RQ-ON-19, RQ-ON-20, RQ-ON-21, RQ-ON-22
 - Acceptance Criteria: AC-ON-06, AC-ON-07, AC-ON-09, AC-ON-18
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-05
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/core/domain/Account.kt`
