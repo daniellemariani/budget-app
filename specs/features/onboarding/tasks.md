@@ -45,10 +45,10 @@ Each task specifies its requirements coverage, acceptance criteria, dependencies
 | TSK-ON-08 | Implement OnboardingLocalDataSource | Data Layer | 1 | S | Done |
 | TSK-ON-09 | Implement OnboardingRepository interface and implementation | Data Layer | 1 | S | Done |
 | TSK-ON-10 | Implement InitializeWorkspaceUseCase | Data Layer | 1 | M | Done |
-| TSK-ON-11 | Implement SaveDisplayNameUseCase | Data Layer | 1 | S | Not Started |
+| TSK-ON-11 | Implement SaveDisplayNameUseCase | Data Layer | 1 | S | Done |
 | TSK-ON-12 | Implement CreateAccountUseCase | Data Layer | 1 | M | Not Started |
-| TSK-ON-13 | Create PreferenceKeys constants | Constants & Resources | 1 | S | Not Started |
-| TSK-ON-13B | Implement PreferencesDataSource | Constants & Resources | 1 | S | Not Started |
+| TSK-ON-13 | Create PreferenceKeys constants | Constants & Resources | 1 | S | Done |
+| TSK-ON-13B | Implement PreferencesDataSource | Constants & Resources | 1 | S | Done |
 | TSK-ON-14 | Define onboarding string resources | Constants & Resources | 1 | S | Not Started |
 | TSK-ON-15 | Implement OnboardingActivity and NavGraph shell | Navigation Shell | 1 | M | Not Started |
 | TSK-ON-16 | Implement OnboardingViewModel | ViewModel | 1 | L | Not Started |
@@ -473,7 +473,7 @@ This group implements the Repository, LocalDataSource, and Use Cases for onboard
 - Group: Data Layer
 - Requirements: RQ-ON-12, RQ-ON-15
 - Acceptance Criteria: AC-ON-05, AC-ON-10
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-13B (PreferencesDataSource must exist)
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/domain/SaveDisplayNameUseCase.kt`
@@ -536,7 +536,7 @@ This group defines all constants and string resources. Can be developed in paral
 - Group: Constants & Resources
 - Requirements: RQ-ON-12, BR-ON-01, BR-ON-03
 - Acceptance Criteria: AC-ON-05, AC-ON-10
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-02
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/core/data/PreferenceKeys.kt`
@@ -557,7 +557,7 @@ This group defines all constants and string resources. Can be developed in paral
 - Group: Constants & Resources
 - Requirements: RQ-ON-12, BR-ON-01, BR-ON-03
 - Acceptance Criteria: AC-ON-05, AC-ON-10
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-13
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/core/data/PreferencesDataSource.kt`
