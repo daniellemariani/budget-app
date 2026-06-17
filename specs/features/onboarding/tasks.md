@@ -46,7 +46,7 @@ Each task specifies its requirements coverage, acceptance criteria, dependencies
 | TSK-ON-09 | Implement OnboardingRepository interface and implementation | Data Layer | 1 | S | Done |
 | TSK-ON-10 | Implement InitializeWorkspaceUseCase | Data Layer | 1 | M | Done |
 | TSK-ON-11 | Implement SaveDisplayNameUseCase | Data Layer | 1 | S | Done |
-| TSK-ON-12 | Implement CreateAccountUseCase | Data Layer | 1 | M | Not Started |
+| TSK-ON-12 | Implement CreateAccountUseCase | Data Layer | 1 | M | Done |
 | TSK-ON-13 | Create PreferenceKeys constants | Constants & Resources | 1 | S | Done |
 | TSK-ON-13B | Implement PreferencesDataSource | Constants & Resources | 1 | S | Done |
 | TSK-ON-14 | Define onboarding string resources | Constants & Resources | 1 | S | Not Started |
@@ -493,7 +493,7 @@ This group implements the Repository, LocalDataSource, and Use Cases for onboard
 - Group: Data Layer
 - Requirements: RQ-ON-19, RQ-ON-21, RQ-ON-22, RQ-ON-26
 - Acceptance Criteria: AC-ON-06, AC-ON-07, AC-ON-16, AC-ON-18
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-09
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/domain/CreateAccountUseCase.kt`
