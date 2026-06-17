@@ -1,3 +1,50 @@
 <resources>
     <string name="app_name">Capital</string>
+
+    <!-- Feature Slides -->
+    <string name="onboarding_slide_1_title">Know where your money goes</string>
+    <string name="onboarding_slide_1_message">Track every expense and income across all your accounts. See your full financial picture at a glance.</string>
+    <string name="onboarding_slide_2_title">Plan with intention</string>
+    <string name="onboarding_slide_2_message">Set monthly spending budgets by category. Save toward the things that matter most.</string>
+    <string name="onboarding_slide_3_title">All your accounts, one place. Works offline, always.</string>
+    <string name="onboarding_slide_3_message">Add checking, savings, credit cards, and cash. Your data stays on your device — no account required.</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_get_started">Get Started</string>
+
+    <!-- Set Your Name -->
+    <string name="onboarding_name_hint">Your name</string>
+    <string name="onboarding_name_privacy_copy">Your display name is stored only on this device. No account required.</string>
+    <string name="onboarding_name_continue">Continue</string>
+
+    <!-- Add an Account -->
+    <string name="onboarding_account_encouraging_copy">Add an account to get the most out of %s</string>
+    <string name="onboarding_account_name_label">Account name</string>
+    <string name="onboarding_account_type_label">Account type</string>
+    <string name="onboarding_account_type_checking">Checking</string>
+    <string name="onboarding_account_type_savings">Savings</string>
+    <string name="onboarding_account_type_cash">Cash</string>
+    <string name="onboarding_account_type_credit_card">Credit Card</string>
+    <string name="onboarding_account_currency_label">Currency</string>
+    <string name="onboarding_account_initial_balance_label">Initial balance</string>
+    <string name="onboarding_account_credit_limit_label">Credit limit</string>
+    <string name="onboarding_account_save">Save</string>
+    <string name="onboarding_account_skip">Skip for now</string>
+
+    <!-- Account Saved Dialog -->
+    <string name="onboarding_dialog_title">Account saved!</string>
+    <string name="onboarding_dialog_body">Would you like to add another account or go to the app\'s Home?</string>
+    <string name="onboarding_dialog_add_another">Add Another Account</string>
+    <string name="onboarding_dialog_go_home">Go to Home</string>
+
+    <!-- Validation and Error Messages -->
+    <string name="onboarding_error_duplicate_account_name">An account with this name already exists.</string>
+    <string name="onboarding_error_account_save_failed">Couldn\'t save account. Please try again.</string>
+    <string name="onboarding_error_max_amount">Maximum amount is $9,999,999.99.</string>
+    <string name="onboarding_error_credit_limit_zero">Credit limit must be greater than $0.</string>
+    <string name="onboarding_error_credit_limit_below_balance">Credit limit must be greater than or equal to the initial balance.</string>
+
+    <!-- Initialization Error -->
+    <string name="onboarding_error_init_title">Something went wrong.</string>
+    <string name="onboarding_error_init_body">Please try again.</string>
+    <string name="onboarding_error_retry">Retry</string>
 </resources>

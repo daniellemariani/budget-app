@@ -49,7 +49,7 @@ Each task specifies its requirements coverage, acceptance criteria, dependencies
 | TSK-ON-12 | Implement CreateAccountUseCase | Data Layer | 1 | M | Done |
 | TSK-ON-13 | Create PreferenceKeys constants | Constants & Resources | 1 | S | Done |
 | TSK-ON-13B | Implement PreferencesDataSource | Constants & Resources | 1 | S | Done |
-| TSK-ON-14 | Define onboarding string resources | Constants & Resources | 1 | S | Not Started |
+| TSK-ON-14 | Define onboarding string resources | Constants & Resources | 1 | S | Done |
 | TSK-ON-15 | Implement OnboardingActivity and NavGraph shell | Navigation Shell | 1 | M | Not Started |
 | TSK-ON-16 | Implement OnboardingViewModel | ViewModel | 1 | L | Not Started |
 | TSK-ON-17 | Implement AccountFormFields shared composable | Shared Components | 1 | M | Not Started |
@@ -609,7 +609,7 @@ This group defines all constants and string resources. Can be developed in paral
 - Group: Constants & Resources
 - Requirements: RQ-ON-03, RQ-ON-05, RQ-ON-06, RQ-ON-10, RQ-ON-14, RQ-ON-18, RQ-ON-23, RQ-ON-24
 - Acceptance Criteria: AC-ON-01 through AC-ON-20
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-01
 - Creates:
   - `android/app/src/main/res/values/strings.xml`
