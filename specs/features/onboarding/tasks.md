@@ -50,7 +50,7 @@ Each task specifies its requirements coverage, acceptance criteria, dependencies
 | TSK-ON-13 | Create PreferenceKeys constants | Constants & Resources | 1 | S | Done |
 | TSK-ON-13B | Implement PreferencesDataSource | Constants & Resources | 1 | S | Done |
 | TSK-ON-14 | Define onboarding string resources | Constants & Resources | 1 | S | Done |
-| TSK-ON-15 | Implement OnboardingActivity and NavGraph shell | Navigation Shell | 1 | M | Not Started |
+| TSK-ON-15 | Implement OnboardingActivity and NavGraph shell | Navigation Shell | 1 | M | Done |
 | TSK-ON-16 | Implement OnboardingViewModel | ViewModel | 1 | L | Not Started |
 | TSK-ON-17 | Implement AccountFormFields shared composable | Shared Components | 1 | M | Not Started |
 | TSK-ON-18 | Implement OnboardingPageIndicator and OnboardingSlide | Shared Components | 1 | S | Not Started |
@@ -640,7 +640,7 @@ This group wires up `OnboardingActivity`, the `NavHost`, route constants, and ba
 - Group: Navigation Shell
 - Requirements: RQ-ON-01, RQ-ON-07, RQ-ON-08, RQ-ON-16, RQ-ON-25, BR-ON-01, BR-ON-08
 - Acceptance Criteria: AC-ON-10, AC-ON-11, AC-ON-12, AC-ON-13, AC-ON-14, AC-ON-15
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-03, TSK-ON-13B
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/OnboardingActivity.kt`
