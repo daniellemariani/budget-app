@@ -9,9 +9,10 @@ class InitializeWorkspaceUseCase @Inject constructor(
     private val repository: OnboardingRepository,
 ) {
 
-    suspend operator fun invoke(): Result<Unit> = try {
-        if (repository.getFirstWorkspace() != null) {
-            Result.success(Unit)
+    suspend operator fun invoke(): Result<String> = try {
+        val existing = repository.getFirstWorkspace()
+        if (existing != null) {
+            Result.success(existing.id)
         } else {
             val now = System.currentTimeMillis() / 1000
             val workspaceId = UUID.randomUUID().toString()
@@ -27,7 +28,7 @@ class InitializeWorkspaceUseCase @Inject constructor(
             )
             repository.insertWorkspace(workspace)
             repository.insertCategories(buildDefaultCategories(workspaceId, now))
-            Result.success(Unit)
+            Result.success(workspaceId)
         }
     } catch (e: Exception) {
         Result.failure(e)

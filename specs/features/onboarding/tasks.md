@@ -51,7 +51,7 @@ Each task specifies its requirements coverage, acceptance criteria, dependencies
 | TSK-ON-13B | Implement PreferencesDataSource | Constants & Resources | 1 | S | Done |
 | TSK-ON-14 | Define onboarding string resources | Constants & Resources | 1 | S | Done |
 | TSK-ON-15 | Implement OnboardingActivity and NavGraph shell | Navigation Shell | 1 | M | Done |
-| TSK-ON-16 | Implement OnboardingViewModel | ViewModel | 1 | L | Not Started |
+| TSK-ON-16 | Implement OnboardingViewModel | ViewModel | 1 | L | Done |
 | TSK-ON-17 | Implement AccountFormFields shared composable | Shared Components | 1 | M | Not Started |
 | TSK-ON-18 | Implement OnboardingPageIndicator and OnboardingSlide | Shared Components | 1 | S | Not Started |
 | TSK-ON-19 | Implement AccountSavedDialog component | Shared Components | 1 | S | Not Started |
@@ -690,7 +690,7 @@ This group wires up `OnboardingActivity`, the `NavHost`, route constants, and ba
 - Group: ViewModel
 - Requirements: RQ-ON-01, RQ-ON-10, RQ-ON-11, RQ-ON-12, RQ-ON-19, RQ-ON-20, RQ-ON-21, RQ-ON-22, RQ-ON-23, RQ-ON-26, BR-ON-02, BR-ON-07
 - Acceptance Criteria: AC-ON-04, AC-ON-05, AC-ON-06, AC-ON-07, AC-ON-09, AC-ON-16, AC-ON-17, AC-ON-18
-- Status: Not Started
+- Status: Done
 - Depends on: TSK-ON-10, TSK-ON-11, TSK-ON-12
 - Creates:
   - `android/app/src/main/java/com/dmariani/capital/feature/onboarding/ui/OnboardingViewModel.kt`
